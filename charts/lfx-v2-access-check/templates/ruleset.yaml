@@ -1,0 +1,35 @@
+---
+apiVersion: heimdall.dadrus.github.com/v1alpha4
+kind: RuleSet
+metadata:
+  name: lfx-v2-access-check
+  namespace: lfx
+spec:
+  rules:
+    - id: "rule:lfx-v2-access-check:health"
+      match:
+        methods:
+          - GET
+        routes:
+          - path: /livez
+          - path: /readyz
+      execute:
+        - authenticator: anonymous_authenticator
+        - authorizer: allow_all
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: lfx-v2-access-check
+    - id: "rule:lfx-v2-access-check:access-check"
+      match:
+        methods:
+          - POST
+        routes:
+          - path: /access-check
+      execute:
+        - authenticator: anonymous_authenticator
+        - authorizer: allow_all
+        - finalizer: create_jwt
+          config:
+            values:
+              aud: lfx-v2-access-check

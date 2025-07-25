@@ -1,0 +1,23 @@
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+
+replicaCount: 1
+
+# Override from CLI/CI: --set image.tag=<git-sha>, etc.
+image:
+  tag: "0.1.0"
+  repository: linuxfoundation/lfx-access-check
+
+# ingress is the configuration for the ingress routing
+ingress:
+  hostname: lfx-api.k8s.orb.local
+
+# nats is the configuration for the NATS server
+nats:
+  # url is the URL of the NATS server
+  url: nats://lfx-platform-nats.lfx.svc.cluster.local:4222
+
+# heimdall is the configuration for the heimdall middleware
+heimdall:
+  enabled: true
+  url: http://heimdall.lfx.svc.cluster.local:4456
