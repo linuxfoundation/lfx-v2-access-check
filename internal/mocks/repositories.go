@@ -34,6 +34,12 @@ func (m *MockAuthRepository) ValidateToken(ctx context.Context, token string) (*
 	}, nil
 }
 
+// HealthCheck mocks health check
+func (m *MockAuthRepository) HealthCheck(ctx context.Context) error {
+	// Default success behavior
+	return nil
+}
+
 // MockMessagingRepository provides a mock implementation of MessagingRepository
 type MockMessagingRepository struct {
 	RequestFunc func(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error)

@@ -8,6 +8,8 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/infrastructure/config"
 	"github.com/linuxfoundation/lfx-v2-access-check/pkg/log"
@@ -22,13 +24,25 @@ func main() {
 	// Load configuration with CLI flags and environment variables
 	cfg := config.LoadConfig()
 
-	ctx := context.Background()
+	// Setup signal handling for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go func() {
+		<-sigChan
+		slog.InfoContext(ctx, "Received shutdown signal, shutting down gracefully...")
+		cancel()
+	}()
+
 	slog.InfoContext(ctx, "Starting LFX Access Check Service",
 		"host", cfg.Host,
 		"port", cfg.Port,
 	)
 
-	if err := StartServer(cfg); err != nil {
+	if err := StartServer(ctx, cfg); err != nil {
 		slog.Error("Failed to start server", "error", err)
 		os.Exit(1)
 	}

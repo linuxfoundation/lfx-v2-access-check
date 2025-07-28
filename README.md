@@ -1,76 +1,89 @@
 # LFX v2 Access Check Service
 
+![Build Status](https://github.com/linuxfoundation/lfx-v2-access-check/workflows/Access%20Check%20Service%20Build/badge.svg)
+![License](https://img.shields.io/badge/License-MIT-blue.svg)
+![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)
+
 A access check service for the LFX v2 platform, providing centralized authorization and permission management across LFX services.
+
+## ✨ Key Features
+
+- **🚀 Bulk Access Checks**: Process multiple resource-action permission checks in a single HTTP request
+- **🔐 JWT Authentication**: Secure authentication using Heimdall-issued JWT tokens
+- **🔄 Real-time Processing**: Asynchronous message processing via NATS queue
+- **🚢 Cloud Native**: Kubernetes-ready with Helm charts for easy deployment
 
 ## 🏗️ Architecture Overview
 
 ```mermaid
 graph TB
-    subgraph "Client Applications"
+    subgraph "API Consumers"
         A[Web UI]
         B[CLI Tools]
         C[Mobile Apps]
     end
 
-    subgraph "LFX v2 Access Check Service"
-        D[HTTP Server<br/>:8080]
-        E[JWT Auth<br/>Middleware]
-        F[Access Service<br/>Core Logic]
-        G[Health Check<br/>Endpoints]
+    subgraph "LFX v2 Platform Gateway"
+        T[Traefik<br/>API Gateway]
+        H[Heimdall<br/>Auth Middleware]
     end
 
-    subgraph "External Dependencies"
-        H[Heimdall<br/>JWT Provider]
-        I[NATS<br/>Message Queue]
-        J[Downstream<br/>Services]
+    subgraph "Access Check Service"
+        AC[HTTP Server<br/>:8080]
+        AS[Access Service<br/>Core Logic]
+        HE[Health Endpoints<br/>/livez /readyz]
     end
 
-    A --> D
-    B --> D
-    C --> D
+    subgraph "Platform Infrastructure"
+        N[NATS<br/>Message Queue]
+        FS[Authorization<br/>Services]
+    end
+
+    A --> T
+    B --> T
+    C --> T
     
-    D --> E
-    E --> F
-    F --> I
-    I --> J
+    T --> H
+    H --> AC
+    AC --> AS
+    AC --> HE
     
-    E <--> H
+    AS <-->|bulk access checks<br/>dev.lfx.access_check.request| N
+    N <--> FS
     
-    D --> G
-    
-    style D fill:#e1f5fe
-    style F fill:#f3e5f5
-    style H fill:#fff3e0
-    style I fill:#e8f5e8
+    style AC fill:#e1f5fe
+    style AS fill:#f3e5f5
+    style N fill:#e8f5e8
 ```
 
-## 🔄 Request Flow
+## 🔄 Access Check Flow
 
 ```mermaid
 sequenceDiagram
-    participant Client
-    participant Gateway as API Gateway
-    participant Access as Access Check Service
+    participant Client as API Consumer
+    participant Traefik as Traefik Gateway
     participant Heimdall as Heimdall Auth
+    participant AccessCheck as Access Check Service
     participant NATS as NATS Queue
-    participant Service as Target Service
+    participant AuthSvc as Authorization Services
 
-    Client->>Gateway: POST /check-access<br/>Bearer: JWT
-    Gateway->>Access: Forward request
+    Client->>Traefik: POST /access-check<br/>Bearer: JWT + resource list
+    Traefik->>Heimdall: Validate JWT & authorize
+    Heimdall-->>Traefik: Auth success
+    Traefik->>AccessCheck: Forward authenticated request
     
-    Access->>Heimdall: Validate JWT token
-    Heimdall-->>Access: Return claims & principal
+    AccessCheck->>AccessCheck: Extract principal from JWT
+    AccessCheck->>AccessCheck: Build resource-action pairs
+    AccessCheck->>NATS: Publish bulk access check<br/>Subject: dev.lfx.access_check.request
     
-    Access->>Access: Extract resource-action pairs
-    Access->>NATS: Publish access check request
-    NATS->>Service: Route to appropriate service
-    Service-->>NATS: Return allow/deny decisions
-    NATS-->>Access: Aggregate responses
+    NATS->>AuthSvc: Route access check request
+    AuthSvc-->>NATS: Return allow/deny results
     
-    Access-->>Gateway: JSON response with results
-    Gateway-->>Client: Access decisions
-    
-    Note over Access: All requests logged<br/>with request ID
+    NATS-->>AccessCheck: Return bulk check results
+    AccessCheck-->>Traefik: JSON response with decisions
+    Traefik-->>Client: Access check results
+
+    Note over AccessCheck: Optimized for bulk operations<br/>with comprehensive logging
 ```
 
 ## 🚀 Quick Start

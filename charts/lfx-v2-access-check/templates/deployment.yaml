@@ -21,8 +21,25 @@ spec:
           image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
           imagePullPolicy: Never
           ports:
-            - containerPort: 8080
+            - containerPort: {{ .Values.app.port }}
               name: web
+          env:
+            - name: PORT
+              value: {{ .Values.app.port }}
+            - name: HOST
+              value: "{{ .Values.app.host }}"
+            - name: DEBUG
+              value: "{{ .Values.app.debug }}"
+            - name: BIND_ADDR
+              value: "{{ .Values.app.bindAddr }}"
+            - name: AUDIENCE
+              value: "{{ .Values.app.audience }}"
+            - name: ISSUER
+              value: "{{ .Values.app.issuer }}"
+            - name: NATS_URL
+              value: "{{ .Values.nats.url }}"
+            - name: JWKS_URL
+              value: "{{ .Values.heimdall.url }}"
           livenessProbe:
             httpGet:
               path: /livez

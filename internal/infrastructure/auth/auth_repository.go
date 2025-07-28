@@ -6,12 +6,10 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/url"
 	"strings"
-	"time"
 
 	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
 	"github.com/auth0/go-jwt-middleware/v2/jwks"
@@ -46,7 +44,7 @@ func NewAuthRepository(jwksURL, issuer, audience string) (contracts.AuthReposito
 	}
 
 	// Set up JWKS provider
-	provider := jwks.NewCachingProvider(issuerU, 5*time.Minute, jwks.WithCustomJWKSURI(jwksU))
+	provider := jwks.NewCachingProvider(issuerU, constants.DefaultJWKSCacheTimeout, jwks.WithCustomJWKSURI(jwksU))
 
 	// Factory for custom JWT claims
 	customClaims := func() validator.CustomClaims {
@@ -100,7 +98,7 @@ func (r *authRepository) ValidateToken(ctx context.Context, token string) (*cont
 // HealthCheck verifies the auth service is accessible and JWKS can be fetched
 func (r *authRepository) HealthCheck(ctx context.Context) error {
 	if r.validator == nil {
-		return errors.New("JWT validator not initialized")
+		return constants.ErrJWTValidatorNotInit
 	}
 
 	// Try to validate a minimal token structure to test JWKS connectivity
@@ -120,7 +118,7 @@ func (r *authRepository) HealthCheck(ctx context.Context) error {
 			strings.Contains(errStr, "timeout") ||
 			strings.Contains(errStr, "no such host") ||
 			strings.Contains(errStr, "network is unreachable") {
-			return fmt.Errorf("JWKS endpoint not accessible: %w", err)
+			return fmt.Errorf("%s: %w", constants.ErrMsgJWKSEndpointNotAccessible, err)
 		}
 		// Other validation errors are expected for test token - JWKS is healthy
 	}

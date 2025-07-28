@@ -8,6 +8,18 @@ image:
   tag: "0.1.0"
   repository: linuxfoundation/lfx-access-check
 
+# Application configuration
+app:
+  # Server configuration
+  port: "8080"
+  host: ""
+  debug: false
+  bindAddr: "*"
+
+  # JWT/Auth configuration
+  audience: "access-svc"
+  issuer: "heimdall"
+
 # ingress is the configuration for the ingress routing
 ingress:
   hostname: lfx-api.k8s.orb.local

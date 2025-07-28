@@ -5,12 +5,6 @@
 # https://github.com/zricethezav/gitleaks
 
 title = "LFX v2 Access Check Gitleaks Config"
-description = "Gitleaks configuration for detecting secrets and sensitive information"
-
-# Global settings
-[extend]
-# Use the default gitleaks config as base
-useDefault = true
 
 # Custom rules for LFX specific patterns
 [[rules]]

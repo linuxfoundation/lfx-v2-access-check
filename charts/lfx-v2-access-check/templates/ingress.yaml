@@ -14,10 +14,10 @@ spec:
         Host(`{{ .Values.ingress.hostname }}`) && 
         (Path(`/access-check`) || Path(`/livez`) || Path(`/readyz`))
       priority: 10
+      {{- if .Values.heimdall.enabled }}
       middlewares:
-        {{- if .Values.heimdall.enabled }}
         - name: heimdall
-        {{- end }}
+      {{- end }}
       services:
         - kind: Service
           name: lfx-v2-access-check

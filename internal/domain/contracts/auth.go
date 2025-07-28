@@ -6,8 +6,9 @@ package contracts
 
 import (
 	"context"
-	"errors"
 	"log/slog"
+
+	"github.com/linuxfoundation/lfx-v2-access-check/pkg/constants"
 )
 
 // HeimdallClaims represents JWT claims from Heimdall
@@ -20,7 +21,7 @@ type HeimdallClaims struct {
 func (c *HeimdallClaims) Validate(ctx context.Context) error {
 	if c.Principal == "" {
 		slog.WarnContext(ctx, "validation failed: principal must be provided")
-		return errors.New("principal must be provided")
+		return constants.ErrPrincipalRequired
 	}
 	slog.DebugContext(ctx, "validation successful", "principal", c.Principal)
 	return nil

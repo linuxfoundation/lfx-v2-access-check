@@ -4,6 +4,7 @@ package integration
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -72,9 +73,8 @@ func TestHealthEndpoints(t *testing.T) {
 				t.Errorf("Expected status %d, got %d", tt.expectedStatus, resp.StatusCode)
 			}
 
-			body := make([]byte, len(tt.expectedBody))
-			_, err = resp.Body.Read(body)
-			if err != nil && err.Error() != "EOF" {
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
 				t.Fatalf("Failed to read response body: %v", err)
 			}
 

@@ -18,7 +18,7 @@ func TestRequestIDMiddleware_GeneratesNewRequestID(t *testing.T) {
 	// Create a test handler that checks the context
 	var capturedRequestID string
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		capturedRequestID = r.Context().Value(requestIDKey).(string)
+		capturedRequestID = r.Context().Value(constants.RequestIDHeader).(string)
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -64,7 +64,7 @@ func TestRequestIDMiddleware_UsesExistingRequestID(t *testing.T) {
 	// Create a test handler that checks the context
 	var capturedRequestID string
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		capturedRequestID = r.Context().Value(requestIDKey).(string)
+		capturedRequestID = r.Context().Value(constants.RequestIDHeader).(string)
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -98,7 +98,7 @@ func TestRequestIDMiddleware_EmptyRequestIDHeader(t *testing.T) {
 	// Create a test handler that checks the context
 	var capturedRequestID string
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		capturedRequestID = r.Context().Value(requestIDKey).(string)
+		capturedRequestID = r.Context().Value(constants.RequestIDHeader).(string)
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -131,7 +131,7 @@ func TestRequestIDMiddleware_MultipleRequests(t *testing.T) {
 	// Store request IDs from multiple requests
 	var requestIDs []string
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestID := r.Context().Value(requestIDKey).(string)
+		requestID := r.Context().Value(constants.RequestIDHeader).(string)
 		requestIDs = append(requestIDs, requestID)
 		w.WriteHeader(http.StatusOK)
 	})
@@ -174,12 +174,12 @@ func TestRequestIDMiddleware_ContextPropagation(t *testing.T) {
 	// Create a nested handler that checks context propagation
 	var outerRequestID, innerRequestID string
 	innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		innerRequestID = r.Context().Value(requestIDKey).(string)
+		innerRequestID = r.Context().Value(constants.RequestIDHeader).(string)
 		w.WriteHeader(http.StatusOK)
 	})
 
 	outerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		outerRequestID = r.Context().Value(requestIDKey).(string)
+		outerRequestID = r.Context().Value(constants.RequestIDHeader).(string)
 		innerHandler.ServeHTTP(w, r)
 	})
 
@@ -304,7 +304,7 @@ func TestRequestIDMiddleware_HTTPMethods(t *testing.T) {
 	}
 
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestID := r.Context().Value(requestIDKey).(string)
+		requestID := r.Context().Value(constants.RequestIDHeader).(string)
 		results = append(results, struct {
 			method    string
 			requestID string
@@ -345,7 +345,7 @@ func TestRequestIDMiddleware_ErrorHandling(t *testing.T) {
 
 	// Test handler that returns an error
 	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestID := r.Context().Value(requestIDKey).(string)
+		requestID := r.Context().Value(constants.RequestIDHeader).(string)
 		if requestID == "" {
 			t.Error("Request ID should be available even when handler returns error")
 		}

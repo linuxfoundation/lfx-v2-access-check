@@ -1,5 +1,4 @@
 // Copyright The Linux Foundation and each contributor to LFX.
-//
 // SPDX-License-Identifier: MIT
 
 // Package log provides structured logging utilities for context-aware logging.
@@ -7,6 +6,7 @@ package log
 
 import (
 	"context"
+	"log"
 	"log/slog"
 	"os"
 )
@@ -82,7 +82,7 @@ func InitStructureLogConfig() {
 			addSourceBool := false
 
 			addSource := os.Getenv("LOG_ADD_SOURCE")
-			if addSource != "" || addSource == "true" || addSource == "false" {
+			if addSource == "true" || addSource == "false" {
 				addSourceBool = addSource == "true"
 			}
 			slog.Info("log config",
@@ -99,6 +99,7 @@ func InitStructureLogConfig() {
 		f()
 	}
 	h = slog.NewJSONHandler(os.Stdout, logOptions)
+	log.SetFlags(log.Llongfile)
 	logger := contextHandler{h}
 	slog.SetDefault(slog.New(logger))
 }

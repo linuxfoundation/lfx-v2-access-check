@@ -206,9 +206,9 @@ func TestLoadConfig_DebugEnvironmentVariableBehavior(t *testing.T) {
 		{"debug_true", "true", true},
 		{"debug_1", "1", true},
 		{"debug_yes", "yes", true},
-		{"debug_false", "false", true}, // Any non-empty value sets debug to true
-		{"debug_0", "0", true},         // Any non-empty value sets debug to true
-		{"debug_empty", "", false},     // Empty value uses default (false)
+		{"debug_false", "false", false}, // "false" should set debug to false
+		{"debug_0", "0", false},         // "0" should set debug to false
+		{"debug_empty", "", false},      // Empty value uses default (false)
 	}
 
 	for _, tt := range tests {
@@ -314,4 +314,61 @@ func clearEnvVars() {
 	os.Unsetenv("AUDIENCE")
 	os.Unsetenv("ISSUER")
 	os.Unsetenv("NATS_URL")
+}
+
+func TestParseBool(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		// Standard Go boolean values
+		{"true", "true", true},
+		{"false", "false", false},
+		{"TRUE", "TRUE", true},
+		{"FALSE", "FALSE", false},
+		{"True", "True", true},
+		{"False", "False", false},
+		{"1", "1", true},
+		{"0", "0", false},
+
+		// Extended boolean values
+		{"yes", "yes", true},
+		{"no", "no", false},
+		{"YES", "YES", true},
+		{"NO", "NO", false},
+		{"Yes", "Yes", true},
+		{"No", "No", false},
+		{"y", "y", true},
+		{"n", "n", false},
+		{"Y", "Y", true},
+		{"N", "N", false},
+		{"on", "on", true},
+		{"off", "off", false},
+		{"ON", "ON", true},
+		{"OFF", "OFF", false},
+
+		// Values with whitespace
+		{"  true  ", "  true  ", true},
+		{"  false  ", "  false  ", false},
+		{"  yes  ", "  yes  ", true},
+		{"  no  ", "  no  ", false},
+
+		// Invalid values (should return false)
+		{"empty", "", false},
+		{"invalid", "invalid", false},
+		{"random", "random", false},
+		{"2", "2", false},
+		{"-1", "-1", false},
+		{"maybe", "maybe", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseBool(tt.input)
+			if result != tt.expected {
+				t.Errorf("parseBool(%q) = %v, expected %v", tt.input, result, tt.expected)
+			}
+		})
+	}
 }

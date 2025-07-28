@@ -10,4 +10,7 @@ import "time"
 const (
 	// JWTClockSkew is the allowed time difference for JWT validation
 	JWTClockSkew = 5 * time.Second
+
+	// DefaultJWKSCacheTimeout is the default timeout for JWKS caching
+	DefaultJWKSCacheTimeout = 5 * time.Minute
 )

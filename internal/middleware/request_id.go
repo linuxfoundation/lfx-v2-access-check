@@ -14,12 +14,6 @@ import (
 	"github.com/linuxfoundation/lfx-v2-access-check/pkg/log"
 )
 
-// contextKey is a custom type for context keys to avoid collisions
-type contextKey string
-
-// requestIDKey is the context key for storing request IDs
-const requestIDKey contextKey = "request-id"
-
 // RequestIDMiddleware creates a middleware that adds a request ID to the context
 func RequestIDMiddleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -36,7 +30,7 @@ func RequestIDMiddleware() func(http.Handler) http.Handler {
 			w.Header().Set(constants.RequestIDHeader, requestID)
 
 			// Add request ID to context
-			ctx := context.WithValue(r.Context(), requestIDKey, requestID)
+			ctx := context.WithValue(r.Context(), constants.RequestIDHeader, requestID)
 
 			// Log the request ID using the context-aware logger
 			// This allows the request ID to be included in all logs for this request

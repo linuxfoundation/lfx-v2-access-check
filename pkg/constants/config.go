@@ -4,8 +4,22 @@
 // Package constants defines configuration-related constants.
 package constants
 
-// Default configuration values
+// Configuration constants
 const (
+	// Server environment variables
+	EnvPort     = "PORT"
+	EnvHost     = "HOST"
+	EnvDebug    = "DEBUG"
+	EnvBindAddr = "BIND_ADDR"
+
+	// Authentication environment variables
+	EnvJWKSURL  = "JWKS_URL"
+	EnvAudience = "AUDIENCE"
+	EnvIssuer   = "ISSUER"
+
+	// Messaging environment variables
+	EnvNATSURL = "NATS_URL"
+
 	// Server defaults
 	DefaultHost     = "localhost"
 	DefaultHTTPPort = "8080"

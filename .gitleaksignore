@@ -2,15 +2,7 @@
 # Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
 
-# This file contains patterns to ignore specific findings from gitleaks
+# This file contains specific finding fingerprints to ignore from gitleaks
 # Use this sparingly and only for confirmed false positives
-
-# Example test tokens (these are not real secrets)
-placeholder-token-12345
-test-jwt-secret-abcdef
-mock-api-key-xyz789
-
-# Documentation examples (placeholder values)
-ey.*example.*token
-dummy-secret-key
-sample-database-url
+# Add specific fingerprints here when needed, e.g.:
+# aad7c2f79e8c3f5b8f8a4b3d2c1e0f9a8b7c6d5e4f3g2h1i0j9k8l7m6n5o4p3

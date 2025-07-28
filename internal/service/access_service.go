@@ -7,26 +7,14 @@ package service
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
-	"time"
 
 	accesssvc "github.com/linuxfoundation/lfx-v2-access-check/gen/access_svc"
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/domain/contracts"
+	"github.com/linuxfoundation/lfx-v2-access-check/pkg/constants"
 	"goa.design/goa/v3/security"
-)
-
-// contextKey is a custom type for context keys to avoid collisions
-type contextKey string
-
-const (
-	// claimsKey is the context key for storing JWT claims
-	claimsKey contextKey = "claims"
-
-	accessCheckSubject = "dev.lfx.access_check.request"
-	natsTimeout        = 15 * time.Second
 )
 
 // AccessService implements both domain logic and GOA service interfaces
@@ -56,7 +44,7 @@ var (
 // JWTAuth implements the authorization logic for the JWT security scheme
 func (s *AccessService) JWTAuth(ctx context.Context, token string, _ *security.JWTScheme) (context.Context, error) {
 	// Remove "Bearer " prefix if present
-	if after, ok := strings.CutPrefix(token, "Bearer "); ok {
+	if after, ok := strings.CutPrefix(token, constants.BearerTokenPrefix); ok {
 		token = after
 	}
 
@@ -68,7 +56,7 @@ func (s *AccessService) JWTAuth(ctx context.Context, token string, _ *security.J
 	}
 
 	// Add claims to context for use in endpoints
-	ctx = context.WithValue(ctx, claimsKey, claims)
+	ctx = context.WithValue(ctx, constants.ClaimsContextKey, claims)
 
 	slog.DebugContext(ctx, "JWT validation successful", "principal", claims.Principal)
 	return ctx, nil
@@ -79,16 +67,16 @@ func (s *AccessService) JWTAuth(ctx context.Context, token string, _ *security.J
 // CheckAccess implements the access check endpoint with embedded business logic
 func (s *AccessService) CheckAccess(ctx context.Context, p *accesssvc.CheckAccessPayload) (*accesssvc.CheckAccessResult, error) {
 	// Extract claims from context
-	claims, ok := ctx.Value(claimsKey).(*contracts.HeimdallClaims)
+	claims, ok := ctx.Value(constants.ClaimsContextKey).(*contracts.HeimdallClaims)
 	if !ok {
 		slog.ErrorContext(ctx, "Failed to get claims from context")
-		return nil, accesssvc.MakeUnauthorized(fmt.Errorf("invalid authentication context"))
+		return nil, accesssvc.MakeUnauthorized(constants.ErrInvalidAuthContext)
 	}
 
 	// Validate payload
-	if p.Version != "1" {
+	if p.Version != constants.SupportedAPIVersion {
 		slog.WarnContext(ctx, "Unsupported API version", "version", p.Version)
-		return nil, accesssvc.MakeBadRequest(fmt.Errorf("unsupported API version: %s", p.Version))
+		return nil, accesssvc.MakeBadRequest(fmt.Errorf("%s: %s", constants.ErrMsgUnsupportedAPIVersion, p.Version))
 	}
 
 	if len(p.Requests) == 0 {
@@ -114,16 +102,16 @@ func (s *AccessService) Readyz(ctx context.Context) ([]byte, error) {
 
 	// Check if messaging repository is available and healthy
 	if s.messagingRepo == nil {
-		healthIssues = append(healthIssues, "messaging repository not initialized")
+		healthIssues = append(healthIssues, constants.ErrMsgMessagingRepoNotInit)
 	} else {
 		if err := s.messagingRepo.HealthCheck(ctx); err != nil {
-			healthIssues = append(healthIssues, fmt.Sprintf("NATS connection unhealthy: %v", err))
+			healthIssues = append(healthIssues, fmt.Sprintf("%s: %v", constants.ErrMsgNATSConnUnhealthy, err))
 		}
 	}
 
 	// Check if auth repository is available and healthy
 	if s.authRepo == nil {
-		healthIssues = append(healthIssues, "auth repository not initialized")
+		healthIssues = append(healthIssues, constants.ErrMsgAuthRepoNotInit)
 	} else {
 		if err := s.authRepo.HealthCheck(ctx); err != nil {
 			healthIssues = append(healthIssues, fmt.Sprintf("auth service unhealthy: %v", err))
@@ -133,18 +121,18 @@ func (s *AccessService) Readyz(ctx context.Context) ([]byte, error) {
 	// If any health checks failed, return not ready
 	if len(healthIssues) > 0 {
 		slog.ErrorContext(ctx, "Readiness check failed", "issues", healthIssues)
-		return nil, accesssvc.MakeNotReady(fmt.Errorf("service dependencies unhealthy: %v", healthIssues))
+		return nil, accesssvc.MakeNotReady(fmt.Errorf("%s: %v", constants.ErrMsgServiceDepsUnhealthy, healthIssues))
 	}
 
 	slog.DebugContext(ctx, "Readiness check passed - all dependencies healthy")
-	return []byte("OK"), nil
+	return []byte(constants.HealthOKResponse), nil
 }
 
 // Livez implements the liveness check endpoint
 func (s *AccessService) Livez(ctx context.Context) ([]byte, error) {
 	// Liveness check - as long as the service is running, it's alive
 	slog.DebugContext(ctx, "Liveness check requested")
-	return []byte("OK"), nil
+	return []byte(constants.HealthOKResponse), nil
 }
 
 // ===== PRIVATE BUSINESS LOGIC METHODS =====
@@ -153,7 +141,7 @@ func (s *AccessService) Livez(ctx context.Context) ([]byte, error) {
 func (s *AccessService) performAccessCheck(ctx context.Context, principal string, resources []string) ([]string, error) {
 	if principal == "" {
 		slog.ErrorContext(ctx, "Principal is required for access check")
-		return nil, errors.New("principal is required")
+		return nil, constants.ErrPrincipalRequired
 	}
 
 	if len(resources) == 0 {
@@ -161,7 +149,7 @@ func (s *AccessService) performAccessCheck(ctx context.Context, principal string
 	}
 
 	// Build access check message in the format expected by the backend
-	accessCheckMessage := make([]byte, 0, 80*len(resources))
+	accessCheckMessage := make([]byte, 0, constants.DefaultMessageBufferSizeMultiplier*len(resources))
 
 	for _, resource := range resources {
 		if len(resource) == 0 {
@@ -171,11 +159,16 @@ func (s *AccessService) performAccessCheck(ctx context.Context, principal string
 		// Build relation: resource@user:principal
 		relation := make([]byte, 0, len(resource)+len(principal)+7)
 		relation = append(relation, []byte(resource)...)
-		relation = append(relation, []byte("@user:")...)
+		relation = append(relation, []byte(constants.UserRelationPrefix)...)
 		relation = append(relation, []byte(principal)...)
 
 		accessCheckMessage = append(accessCheckMessage, relation...)
 		accessCheckMessage = append(accessCheckMessage, '\n')
+	}
+
+	// Remove trailing newline if present
+	if len(accessCheckMessage) > 0 && accessCheckMessage[len(accessCheckMessage)-1] == '\n' {
+		accessCheckMessage = accessCheckMessage[:len(accessCheckMessage)-1]
 	}
 
 	// If no valid resources, return empty results
@@ -183,29 +176,34 @@ func (s *AccessService) performAccessCheck(ctx context.Context, principal string
 		return []string{}, nil
 	}
 
-	// Trim trailing newline
-	accessCheckMessage = accessCheckMessage[:len(accessCheckMessage)-1]
-
 	// Make NATS request
-	responseData, err := s.messagingRepo.Request(ctx, accessCheckSubject, accessCheckMessage, natsTimeout)
+	responseData, err := s.messagingRepo.Request(ctx, constants.AccessCheckSubject, accessCheckMessage, constants.DefaultNATSTimeout)
 	if err != nil {
-		slog.ErrorContext(ctx, "NATS request failed", "error", err, "subject", accessCheckSubject)
-		return nil, fmt.Errorf("NATS request failed: %w", err)
+		slog.ErrorContext(ctx, "NATS request failed", "error", err, "subject", constants.AccessCheckSubject)
+		return nil, fmt.Errorf("%s: %w", constants.ErrMsgNATSRequestFailed, err)
 	}
 
-	// Sanity check response - if there's a space in the first 20 bytes, assume it's an error
-	topRange := 20
+	// Sanity check response - if there's a space in the first N bytes, assume it's an error
+	topRange := constants.DefaultResponseSanityCheckBytes
 	if len(responseData) < topRange {
 		topRange = len(responseData)
 	}
 	if bytes.Contains(responseData[:topRange], []byte(" ")) {
 		slog.ErrorContext(ctx, "Unexpected response from access check service", "response_preview", string(responseData[:topRange]))
-		return nil, errors.New("unexpected response from access check service")
+		return nil, constants.ErrUnexpectedResponse
 	}
 
-	// Parse response - for now, we return the raw response as a single result
-	// This can be enhanced to parse multiple results if needed
-	results := []string{string(responseData)}
+	// Parse response - split by newlines to get individual results
+	lines := bytes.Split(responseData, []byte("\n"))
+	results := make([]string, 0, len(lines))
+
+	for _, line := range lines {
+		line = bytes.TrimSpace(line)
+		if len(line) == 0 {
+			continue
+		}
+		results = append(results, string(line))
+	}
 
 	return results, nil
 }

@@ -8,24 +8,20 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	accesssvc "github.com/linuxfoundation/lfx-v2-access-check/gen/access_svc"
 	accesssvcsvr "github.com/linuxfoundation/lfx-v2-access-check/gen/http/access_svc/server"
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/container"
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/infrastructure/config"
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/middleware"
+	"github.com/linuxfoundation/lfx-v2-access-check/pkg/constants"
 
 	"goa.design/clue/debug"
 	goahttp "goa.design/goa/v3/http"
 )
 
 // StartServer initializes and starts the access check server following LFX pattern
-func StartServer(cfg *config.Config) error {
-	ctx := context.Background()
+func StartServer(ctx context.Context, cfg *config.Config) error {
 
 	// 1. Initialize dependencies using existing container
 	cont, err := container.NewContainer(cfg)
@@ -99,13 +95,13 @@ func handleHTTPServer(ctx context.Context, cfg *config.Config, endpoints *access
 	srv := &http.Server{
 		Addr:              cfg.Host + ":" + cfg.Port,
 		Handler:           handler,
-		ReadHeaderTimeout: time.Second * 60,
-		WriteTimeout:      time.Second * 60,
-		IdleTimeout:       time.Second * 90,
+		ReadHeaderTimeout: constants.DefaultReadHeaderTimeout,
+		WriteTimeout:      constants.DefaultWriteTimeout,
+		IdleTimeout:       constants.DefaultIdleTimeout,
 	}
 
-	// Start server with graceful shutdown
-	return startServerWithGracefulShutdown(ctx, srv)
+	// Start server with context-aware lifecycle management
+	return runServerWithContext(ctx, srv)
 }
 
 // errorHandler provides consistent error handling across all endpoints
@@ -118,40 +114,37 @@ func errorHandler(logCtx context.Context) func(context.Context, http.ResponseWri
 	}
 }
 
-// startServerWithGracefulShutdown manages server lifecycle with graceful shutdown
-func startServerWithGracefulShutdown(ctx context.Context, srv *http.Server) error {
-	// Channel to listen for interrupt/terminate signals
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-
+// runServerWithContext manages HTTP server lifecycle with context-aware shutdown
+func runServerWithContext(ctx context.Context, srv *http.Server) error {
 	// Channel to listen for server errors
 	serverErr := make(chan error, 1)
 
 	// Start server in goroutine
 	go func() {
-		slog.Info("Access check server listening", "addr", srv.Addr)
+		slog.InfoContext(ctx, "Access check server listening", "addr", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			serverErr <- err
 		}
 	}()
 
-	// Wait for interrupt signal or server error
+	// Wait for context cancellation or server error
 	select {
 	case err := <-serverErr:
 		return err
-	case sig := <-stop:
-		slog.Info("Shutdown signal received", "signal", sig.String())
+	case <-ctx.Done():
+		slog.InfoContext(ctx, "Shutdown initiated via context cancellation")
 	}
 
 	// Graceful shutdown with timeout
-	shutdownCtx, cancel := context.WithTimeout(ctx, 25*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), constants.DefaultShutdownTimeout)
 	defer cancel()
 
+	slog.InfoContext(ctx, "Shutting down server gracefully...")
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		slog.ErrorContext(ctx, "Failed to shutdown server gracefully", "error", err)
 		return err
 	}
 
-	slog.Info("Access check server shutdown complete")
+	slog.InfoContext(ctx, "Server shutdown completed successfully")
 	return nil
 }
