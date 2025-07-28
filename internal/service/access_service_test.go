@@ -10,6 +10,7 @@ import (
 
 	accesssvc "github.com/linuxfoundation/lfx-v2-access-check/gen/access_svc"
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/domain/contracts"
+	"github.com/linuxfoundation/lfx-v2-access-check/pkg/constants"
 	"goa.design/goa/v3/security"
 )
 
@@ -85,7 +86,7 @@ func TestJWTAuth_Success(t *testing.T) {
 	}
 
 	// Check that claims are in context
-	claims, ok := resultCtx.Value(claimsKey).(*contracts.HeimdallClaims)
+	claims, ok := resultCtx.Value(constants.ClaimsContextKey).(*contracts.HeimdallClaims)
 	if !ok {
 		t.Fatal("Claims not found in context")
 	}
@@ -152,7 +153,7 @@ func TestCheckAccess_Success(t *testing.T) {
 
 	// Create context with claims
 	claims := &contracts.HeimdallClaims{Principal: "test-user", Email: "test@example.com"}
-	ctx := context.WithValue(context.Background(), claimsKey, claims)
+	ctx := context.WithValue(context.Background(), constants.ClaimsContextKey, claims)
 
 	payload := &accesssvc.CheckAccessPayload{
 		Version:  "1",
@@ -205,7 +206,7 @@ func TestCheckAccess_UnsupportedVersion(t *testing.T) {
 
 	// Create context with claims
 	claims := &contracts.HeimdallClaims{Principal: "test-user"}
-	ctx := context.WithValue(context.Background(), claimsKey, claims)
+	ctx := context.WithValue(context.Background(), constants.ClaimsContextKey, claims)
 
 	payload := &accesssvc.CheckAccessPayload{
 		Version:  "2", // Unsupported version
@@ -227,7 +228,7 @@ func TestCheckAccess_EmptyRequests(t *testing.T) {
 
 	// Create context with claims
 	claims := &contracts.HeimdallClaims{Principal: "test-user"}
-	ctx := context.WithValue(context.Background(), claimsKey, claims)
+	ctx := context.WithValue(context.Background(), constants.ClaimsContextKey, claims)
 
 	payload := &accesssvc.CheckAccessPayload{
 		Version:  "1",
@@ -259,7 +260,7 @@ func TestCheckAccess_NATSFailure(t *testing.T) {
 
 	// Create context with claims
 	claims := &contracts.HeimdallClaims{Principal: "test-user"}
-	ctx := context.WithValue(context.Background(), claimsKey, claims)
+	ctx := context.WithValue(context.Background(), constants.ClaimsContextKey, claims)
 
 	payload := &accesssvc.CheckAccessPayload{
 		Version:  "1",
@@ -375,5 +376,128 @@ func TestPerformAccessCheck_UnexpectedResponse(t *testing.T) {
 
 	if err.Error() != "unexpected response from access check service" {
 		t.Errorf("Expected 'unexpected response from access check service', got '%s'", err.Error())
+	}
+}
+
+// Unit tests for refactored helper methods
+
+func TestBuildAccessCheckMessage(t *testing.T) {
+	authRepo := &mockAuthRepository{}
+	messagingRepo := &mockMessagingRepository{}
+	service := NewAccessService(authRepo, messagingRepo)
+
+	tests := []struct {
+		name      string
+		principal string
+		resources []string
+		expected  string
+	}{
+		{
+			name:      "empty resources",
+			principal: "user1",
+			resources: []string{},
+			expected:  "",
+		},
+		{
+			name:      "single resource",
+			principal: "user1",
+			resources: []string{"repo1"},
+			expected:  "repo1@user:user1",
+		},
+		{
+			name:      "multiple resources",
+			principal: "user1",
+			resources: []string{"repo1", "repo2"},
+			expected:  "repo1@user:user1\nrepo2@user:user1",
+		},
+		{
+			name:      "empty resource filtered out",
+			principal: "user1",
+			resources: []string{"repo1", "", "repo2"},
+			expected:  "repo1@user:user1\nrepo2@user:user1",
+		},
+		{
+			name:      "all empty resources",
+			principal: "user1",
+			resources: []string{"", "", ""},
+			expected:  "",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result := service.buildAccessCheckMessage(test.principal, test.resources)
+			if result != test.expected {
+				t.Errorf("Expected '%s', got '%s'", test.expected, result)
+			}
+		})
+	}
+}
+
+func TestParseAccessCheckResponse(t *testing.T) {
+	authRepo := &mockAuthRepository{}
+	messagingRepo := &mockMessagingRepository{}
+	service := NewAccessService(authRepo, messagingRepo)
+
+	ctx := context.Background()
+
+	tests := []struct {
+		name         string
+		responseData []byte
+		expected     []string
+		expectError  bool
+	}{
+		{
+			name:         "valid response",
+			responseData: []byte("true\nfalse\ntrue"),
+			expected:     []string{"true", "false", "true"},
+			expectError:  false,
+		},
+		{
+			name:         "empty response",
+			responseData: []byte(""),
+			expected:     []string{},
+			expectError:  false,
+		},
+		{
+			name:         "response with empty lines",
+			responseData: []byte("true\n\nfalse\n"),
+			expected:     []string{"true", "false"},
+			expectError:  false,
+		},
+		{
+			name:         "response with spaces (error)",
+			responseData: []byte("error message here"),
+			expected:     nil,
+			expectError:  true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, err := service.parseAccessCheckResponse(ctx, test.responseData)
+
+			if test.expectError {
+				if err == nil {
+					t.Fatal("Expected error but got none")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("Unexpected error: %v", err)
+			}
+
+			if len(result) != len(test.expected) {
+				t.Errorf("Expected %d results, got %d", len(test.expected), len(result))
+				return
+			}
+
+			for i, expected := range test.expected {
+				if result[i] != expected {
+					t.Errorf("Expected result[%d] = '%s', got '%s'", i, expected, result[i])
+				}
+			}
+		})
 	}
 }

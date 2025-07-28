@@ -148,41 +148,63 @@ func (s *AccessService) performAccessCheck(ctx context.Context, principal string
 		return []string{}, nil
 	}
 
-	// Build access check message in the format expected by the backend
-	accessCheckMessage := make([]byte, 0, constants.DefaultMessageBufferSizeMultiplier*len(resources))
-
-	for _, resource := range resources {
-		if len(resource) == 0 {
-			continue
-		}
-
-		// Build relation: resource@user:principal
-		relation := make([]byte, 0, len(resource)+len(principal)+7)
-		relation = append(relation, []byte(resource)...)
-		relation = append(relation, []byte(constants.UserRelationPrefix)...)
-		relation = append(relation, []byte(principal)...)
-
-		accessCheckMessage = append(accessCheckMessage, relation...)
-		accessCheckMessage = append(accessCheckMessage, '\n')
-	}
-
-	// Remove trailing newline if present
-	if len(accessCheckMessage) > 0 && accessCheckMessage[len(accessCheckMessage)-1] == '\n' {
-		accessCheckMessage = accessCheckMessage[:len(accessCheckMessage)-1]
-	}
-
-	// If no valid resources, return empty results
-	if len(accessCheckMessage) == 0 {
+	// Build access check message
+	message := s.buildAccessCheckMessage(principal, resources)
+	if message == "" {
 		return []string{}, nil
 	}
 
 	// Make NATS request
-	responseData, err := s.messagingRepo.Request(ctx, constants.AccessCheckSubject, accessCheckMessage, constants.DefaultNATSTimeout)
+	responseData, err := s.messagingRepo.Request(ctx, constants.AccessCheckSubject, []byte(message), constants.DefaultNATSTimeout)
 	if err != nil {
 		slog.ErrorContext(ctx, "NATS request failed", "error", err, "subject", constants.AccessCheckSubject)
 		return nil, fmt.Errorf("%s: %w", constants.ErrMsgNATSRequestFailed, err)
 	}
 
+	// Parse and validate response
+	return s.parseAccessCheckResponse(ctx, responseData)
+}
+
+// buildAccessCheckMessage creates the NATS message for access checking using efficient string building
+// add newlines after each item, then remove trailing one
+func (s *AccessService) buildAccessCheckMessage(principal string, resources []string) string {
+	var builder strings.Builder
+
+	// Calculate actual capacity based on real data instead of estimates
+	totalCapacity := 0
+	for _, resource := range resources {
+		if resource != "" {
+			// resource + "@user:" + principal + newline
+			totalCapacity += len(resource) + len(constants.UserRelationPrefix) + len(principal) + 1
+		}
+	}
+
+	if totalCapacity > 0 {
+		builder.Grow(totalCapacity)
+	}
+
+	for _, resource := range resources {
+		if resource == "" {
+			continue
+		}
+
+		// Build relation: resource@user:principal
+		builder.WriteString(resource)
+		builder.WriteString(constants.UserRelationPrefix)
+		builder.WriteString(principal)
+		builder.WriteByte('\n')
+	}
+
+	message := builder.String()
+
+	// Remove trailing newline if present
+	if len(message) > 0 && message[len(message)-1] == '\n' {
+		message = message[:len(message)-1]
+	}
+
+	return message
+} // parseAccessCheckResponse parses and validates the NATS response
+func (s *AccessService) parseAccessCheckResponse(ctx context.Context, responseData []byte) ([]string, error) {
 	// Sanity check response - if there's a space in the first N bytes, assume it's an error
 	topRange := constants.DefaultResponseSanityCheckBytes
 	if len(responseData) < topRange {
