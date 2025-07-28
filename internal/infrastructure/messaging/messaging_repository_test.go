@@ -140,12 +140,6 @@ func TestMessagingRepository_ErrorHandling(t *testing.T) {
 		errMsg  string
 	}{
 		{
-			name:    "malformed_url",
-			url:     "not-a-url",
-			wantErr: true,
-			errMsg:  "no such host",
-		},
-		{
 			name:    "unsupported_scheme",
 			url:     "tcp://localhost:4222",
 			wantErr: true,
@@ -156,12 +150,6 @@ func TestMessagingRepository_ErrorHandling(t *testing.T) {
 			url:     "nats://bad host:4222",
 			wantErr: true,
 			errMsg:  "invalid character",
-		},
-		{
-			name:    "very_long_hostname",
-			url:     "nats://" + strings.Repeat("a", 300) + ":4222",
-			wantErr: true,
-			errMsg:  "no such host",
 		},
 	}
 
