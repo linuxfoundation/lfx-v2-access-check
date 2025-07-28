@@ -17,15 +17,9 @@ A access check service for the LFX v2 platform, providing centralized authorizat
 
 ```mermaid
 graph TB
-    subgraph "API Consumers"
-        A[Web UI]
-        B[CLI Tools]
-        C[Mobile Apps]
-    end
-
     subgraph "LFX v2 Platform Gateway"
         T[Traefik<br/>API Gateway]
-        H[Heimdall<br/>Auth Middleware]
+        H[Heimdall<br/>Access Decision Service]
     end
 
     subgraph "Access Check Service"
@@ -36,24 +30,14 @@ graph TB
 
     subgraph "Platform Infrastructure"
         N[NATS<br/>Message Queue]
-        FS[Authorization<br/>Services]
     end
 
-    A --> T
-    B --> T
-    C --> T
-    
     T --> H
     H --> AC
     AC --> AS
     AC --> HE
     
-    AS <-->|bulk access checks<br/>dev.lfx.access_check.request| N
-    N <--> FS
-    
-    style AC fill:#e1f5fe
-    style AS fill:#f3e5f5
-    style N fill:#e8f5e8
+    AS <-->|bulk access checks<br/>access-check subject| N
 ```
 
 ## 🔄 Access Check Flow
@@ -62,10 +46,9 @@ graph TB
 sequenceDiagram
     participant Client as API Consumer
     participant Traefik as Traefik Gateway
-    participant Heimdall as Heimdall Auth
+    participant Heimdall as Heimdall Access Decision
     participant AccessCheck as Access Check Service
     participant NATS as NATS Queue
-    participant AuthSvc as Authorization Services
 
     Client->>Traefik: POST /access-check<br/>Bearer: JWT + resource list
     Traefik->>Heimdall: Validate JWT & authorize
@@ -74,12 +57,9 @@ sequenceDiagram
     
     AccessCheck->>AccessCheck: Extract principal from JWT
     AccessCheck->>AccessCheck: Build resource-action pairs
-    AccessCheck->>NATS: Publish bulk access check<br/>Subject: dev.lfx.access_check.request
+    AccessCheck->>NATS: Publish bulk access check<br/>Subject: access-check
     
-    NATS->>AuthSvc: Route access check request
-    AuthSvc-->>NATS: Return allow/deny results
-    
-    NATS-->>AccessCheck: Return bulk check results
+    NATS-->>AccessCheck: Return authorization results
     AccessCheck-->>Traefik: JSON response with decisions
     Traefik-->>Client: Access check results
 
