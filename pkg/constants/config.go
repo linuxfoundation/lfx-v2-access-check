@@ -7,10 +7,9 @@ package constants
 // Configuration constants
 const (
 	// Server environment variables
-	EnvPort     = "PORT"
-	EnvHost     = "HOST"
-	EnvDebug    = "DEBUG"
-	EnvBindAddr = "BIND_ADDR"
+	EnvPort  = "PORT"
+	EnvHost  = "HOST"
+	EnvDebug = "DEBUG"
 
 	// Authentication environment variables
 	EnvJWKSURL  = "JWKS_URL"
@@ -21,7 +20,7 @@ const (
 	EnvNATSURL = "NATS_URL"
 
 	// Server defaults
-	DefaultHost     = "localhost"
+	DefaultHost     = "0.0.0.0"
 	DefaultHTTPPort = "8080"
 
 	// Authentication defaults

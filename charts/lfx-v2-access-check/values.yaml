@@ -12,9 +12,8 @@ image:
 app:
   # Server configuration
   port: "8080"
-  host: ""
+  host: "*"
   debug: false
-  bindAddr: "*"
 
   # JWT/Auth configuration
   audience: "access-svc"

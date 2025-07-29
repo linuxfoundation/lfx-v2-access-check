@@ -8,6 +8,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"sync"
 
 	accesssvc "github.com/linuxfoundation/lfx-v2-access-check/gen/access_svc"
 	accesssvcsvr "github.com/linuxfoundation/lfx-v2-access-check/gen/http/access_svc/server"
@@ -28,11 +29,6 @@ func StartServer(ctx context.Context, cfg *config.Config) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := cont.Close(); err != nil {
-			slog.ErrorContext(ctx, "Failed to close container", "error", err)
-		}
-	}()
 
 	// 2. Create GOA service implementation (now using unified service)
 	accessSvc := cont.AccessService // Direct reference to unified service
@@ -45,11 +41,11 @@ func StartServer(ctx context.Context, cfg *config.Config) error {
 
 	// 4. Start HTTP server with all functionality embedded
 	slog.Info("Starting access check server", "host", cfg.Host, "port", cfg.Port)
-	return handleHTTPServer(ctx, cfg, endpoints)
+	return handleHTTPServer(ctx, cfg, endpoints, cont)
 }
 
 // handleHTTPServer follows exact LFX query service pattern for server setup
-func handleHTTPServer(ctx context.Context, cfg *config.Config, endpoints *accesssvc.Endpoints) error {
+func handleHTTPServer(ctx context.Context, cfg *config.Config, endpoints *accesssvc.Endpoints, cont *container.Container) error {
 	// Build the service HTTP request multiplexer
 	var mux goahttp.Muxer
 	{
@@ -93,7 +89,7 @@ func handleHTTPServer(ctx context.Context, cfg *config.Config, endpoints *access
 
 	// Create HTTP server
 	srv := &http.Server{
-		Addr:              cfg.Host + ":" + cfg.Port,
+		Addr:              cfg.ServerAddress(),
 		Handler:           handler,
 		ReadHeaderTimeout: constants.DefaultReadHeaderTimeout,
 		WriteTimeout:      constants.DefaultWriteTimeout,
@@ -101,7 +97,7 @@ func handleHTTPServer(ctx context.Context, cfg *config.Config, endpoints *access
 	}
 
 	// Start server with context-aware lifecycle management
-	return runServerWithContext(ctx, srv)
+	return runServerWithContext(ctx, srv, cont)
 }
 
 // errorHandler provides consistent error handling across all endpoints
@@ -114,8 +110,8 @@ func errorHandler(logCtx context.Context) func(context.Context, http.ResponseWri
 	}
 }
 
-// runServerWithContext manages HTTP server lifecycle with context-aware shutdown
-func runServerWithContext(ctx context.Context, srv *http.Server) error {
+// runServerWithContext manages HTTP server lifecycle with concurrent graceful shutdown
+func runServerWithContext(ctx context.Context, srv *http.Server, cont *container.Container) error {
 	// Channel to listen for server errors
 	serverErr := make(chan error, 1)
 
@@ -135,16 +131,48 @@ func runServerWithContext(ctx context.Context, srv *http.Server) error {
 		slog.InfoContext(ctx, "Shutdown initiated via context cancellation")
 	}
 
-	// Graceful shutdown with timeout
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), constants.DefaultShutdownTimeout)
-	defer cancel()
+	// Enhanced concurrent graceful shutdown (from main.go.txt pattern)
+	return performConcurrentShutdown(ctx, srv, cont)
+}
 
-	slog.InfoContext(ctx, "Shutting down server gracefully...")
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		slog.ErrorContext(ctx, "Failed to shutdown server gracefully", "error", err)
-		return err
-	}
+// performConcurrentShutdown coordinates HTTP and NATS shutdown concurrently like main.go.txt
+func performConcurrentShutdown(ctx context.Context, srv *http.Server, cont *container.Container) error {
+	// Create wait group for concurrent shutdown coordination
+	var gracefulCloseWG sync.WaitGroup
 
-	slog.InfoContext(ctx, "Server shutdown completed successfully")
+	// Add to wait group before starting goroutines to avoid race condition
+	gracefulCloseWG.Add(2)
+
+	// Start HTTP shutdown in goroutine
+	go func() {
+		defer gracefulCloseWG.Done()
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), constants.DefaultShutdownTimeout)
+		defer cancel()
+
+		slog.InfoContext(ctx, "Shutting down HTTP server gracefully...")
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			slog.ErrorContext(ctx, "Failed to shutdown HTTP server gracefully", "error", err)
+		} else {
+			slog.InfoContext(ctx, "HTTP server shutdown completed successfully")
+		}
+	}()
+
+	// Start container/NATS shutdown in goroutine
+	go func() {
+		defer gracefulCloseWG.Done()
+
+		slog.InfoContext(ctx, "Closing container resources (NATS draining)...")
+		if err := cont.Close(); err != nil {
+			slog.ErrorContext(ctx, "Failed to close container resources", "error", err)
+		} else {
+			slog.InfoContext(ctx, "Container resources closed successfully")
+		}
+	}()
+
+	// Wait for both HTTP and NATS shutdown to complete
+	gracefulCloseWG.Wait()
+	slog.InfoContext(ctx, "Concurrent graceful shutdown completed")
+
 	return nil
 }

@@ -102,8 +102,12 @@ func (r *messagingRepository) HealthCheck(ctx context.Context) error {
 		return constants.ErrNATSConnDraining
 	}
 
-	// Send a ping to verify responsiveness
-	if err := r.conn.FlushWithContext(ctx); err != nil {
+	// Send a ping to verify responsiveness with timeout
+	// Create a context with timeout for the health check
+	healthCheckCtx, cancel := context.WithTimeout(ctx, constants.DefaultNATSTimeout)
+	defer cancel()
+
+	if err := r.conn.FlushWithContext(healthCheckCtx); err != nil {
 		return fmt.Errorf("%s: %w", constants.ErrMsgNATSConnNotResponsive, err)
 	}
 

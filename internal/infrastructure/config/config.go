@@ -17,10 +17,9 @@ import (
 // Config holds application configuration
 type Config struct {
 	// Server configuration
-	Host     string
-	Port     string
-	Debug    bool
-	BindAddr string
+	Host  string
+	Port  string
+	Debug bool
 
 	// JWT configuration
 	JWKSUrl  string
@@ -32,73 +31,76 @@ type Config struct {
 }
 
 // LoadConfig loads configuration from CLI flags, environment variables, and defaults
-// Priority: CLI flags > Environment variables > Defaults
+// Priority: CLI flags > Environment variables > Defaults (following POC pattern)
 func LoadConfig() *Config {
 	slog.Info("Loading application configuration")
 
+	// Check environment first, then use constants
+	defaultPort := os.Getenv(constants.EnvPort)
+	if defaultPort == "" {
+		defaultPort = constants.DefaultHTTPPort
+	}
+
+	defaultHost := os.Getenv(constants.EnvHost)
+	if defaultHost == "" {
+		defaultHost = "*"
+	}
+
 	// Define CLI flags
 	var (
-		hostF     = flag.String("host", constants.DefaultHost, "Server host")
-		httpPortF = flag.String("http-port", constants.DefaultHTTPPort, "HTTP port")
-		dbgF      = flag.Bool("debug", false, "Enable debug logging")
+		portF = flag.String("p", defaultPort, "listen port")             // Short flag "p"
+		hostF = flag.String("bind", defaultHost, "interface to bind on") // Short flag "bind"
+		dbgF  = flag.Bool("d", false, "enable debug logging")            // Short flag "d"
 	)
 	flag.Parse()
 
 	config := &Config{
 		// Start with CLI flag values (which include defaults)
-		Host:     *hostF,
-		Port:     *httpPortF,
-		Debug:    *dbgF,
-		BindAddr: "*", // Default bind to all interfaces
+		Port:  *portF,
+		Debug: *dbgF,
+		Host:  *hostF,
 
-		// Default values for other fields
-		JWKSUrl:  constants.DefaultJWKSURL,
-		Audience: constants.DefaultAudience,
-		Issuer:   constants.DefaultIssuer,
-		NATSUrl:  constants.DefaultNATSURL,
+		// Load other configuration from environment with defaults
+		JWKSUrl:  getEnvOrDefault(constants.EnvJWKSURL, constants.DefaultJWKSURL),
+		Audience: getEnvOrDefault(constants.EnvAudience, constants.DefaultAudience),
+		Issuer:   getEnvOrDefault(constants.EnvIssuer, constants.DefaultIssuer),
+		NATSUrl:  getEnvOrDefault(constants.EnvNATSURL, constants.DefaultNATSURL),
 	}
 
-	// Override with environment variables if set
-	if port := os.Getenv(constants.EnvPort); port != "" {
-		config.Port = port
-		slog.Info("Using PORT environment variable", "port", port)
-	}
-
-	if host := os.Getenv(constants.EnvHost); host != "" {
-		config.Host = host
-	}
-
-	if debug := os.Getenv(constants.EnvDebug); debug != "" {
-		if parseBool(debug) {
-			config.Debug = true
-			slog.Info("Debug mode enabled via DEBUG environment variable")
-		} else {
-			config.Debug = false
-		}
-	}
-
-	if bindAddr := os.Getenv(constants.EnvBindAddr); bindAddr != "" {
-		config.BindAddr = bindAddr
-		slog.Info("Using BIND_ADDR environment variable", "bind_addr", bindAddr)
-	}
-
-	if jwksURL := os.Getenv(constants.EnvJWKSURL); jwksURL != "" {
-		config.JWKSUrl = jwksURL
-	}
-
-	if audience := os.Getenv(constants.EnvAudience); audience != "" {
-		config.Audience = audience
-	}
-
-	if issuer := os.Getenv(constants.EnvIssuer); issuer != "" {
-		config.Issuer = issuer
-	}
-
-	if natsURL := os.Getenv(constants.EnvNATSURL); natsURL != "" {
-		config.NATSUrl = natsURL
+	// Handle debug flag from environment (POC checks both DEBUG env and -d flag)
+	if debugEnv := os.Getenv(constants.EnvDebug); debugEnv != "" && parseBool(debugEnv) {
+		config.Debug = true
+		slog.Info("Debug mode enabled via DEBUG environment variable")
 	}
 
 	return config
+}
+
+// ServerAddress constructs the server address combining POC and traditional logic
+// POC logic: If Host is "*", bind to all interfaces (":" + port)
+// Traditional logic: Otherwise use Host:Port
+// This handles both patterns in a single unified method
+func (c *Config) ServerAddress() string {
+	// Use POC binding logic when Host is "*" (wildcard)
+	if c.Host == "*" {
+		return ":" + c.Port // Bind to all interfaces (POC pattern)
+	}
+	// Use traditional Host:Port for specific interfaces
+	return c.Host + ":" + c.Port
+}
+
+// HostPortAddress provides traditional Host:Port address (kept for backward compatibility)
+// This always returns Host:Port regardless of wildcard logic
+func (c *Config) HostPortAddress() string {
+	return c.Host + ":" + c.Port
+}
+
+// getEnvOrDefault returns environment variable value or default if not set
+func getEnvOrDefault(envKey, defaultValue string) string {
+	if value := os.Getenv(envKey); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 // parseBool parses a string value to boolean with support for common boolean representations

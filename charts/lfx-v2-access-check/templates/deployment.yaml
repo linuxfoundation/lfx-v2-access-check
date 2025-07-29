@@ -30,8 +30,6 @@ spec:
               value: "{{ .Values.app.host }}"
             - name: DEBUG
               value: "{{ .Values.app.debug }}"
-            - name: BIND_ADDR
-              value: "{{ .Values.app.bindAddr }}"
             - name: AUDIENCE
               value: "{{ .Values.app.audience }}"
             - name: ISSUER
