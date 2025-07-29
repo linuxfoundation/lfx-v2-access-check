@@ -43,7 +43,7 @@ func LoadConfig() *Config {
 
 	defaultHost := os.Getenv(constants.EnvHost)
 	if defaultHost == "" {
-		defaultHost = "*"
+		defaultHost = constants.DefaultHost
 	}
 
 	// Define CLI flags

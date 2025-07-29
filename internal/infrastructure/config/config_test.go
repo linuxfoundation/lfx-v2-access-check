@@ -20,7 +20,7 @@ func restoreFlags(saved *flag.FlagSet) {
 
 func TestConfig_NewInstance(t *testing.T) {
 	config := &Config{
-		Host:     "localhost",
+		Host:     "0.0.0.0",
 		Port:     "8080",
 		Debug:    false,
 		JWKSUrl:  "http://heimdall:4457/.well-known/jwks",
@@ -32,8 +32,8 @@ func TestConfig_NewInstance(t *testing.T) {
 	if config == nil {
 		t.Error("Config should not be nil")
 	}
-	if config.Host != "localhost" {
-		t.Errorf("Expected Host to be 'localhost', got '%s'", config.Host)
+	if config.Host != "0.0.0.0" {
+		t.Errorf("Expected Host to be '0.0.0.0', got '%s'", config.Host)
 	}
 	if config.Port != "8080" {
 		t.Errorf("Expected Port to be '8080', got '%s'", config.Port)
@@ -55,8 +55,8 @@ func TestLoadConfig_Defaults(t *testing.T) {
 	config := LoadConfig()
 
 	// Check default values
-	if config.Host != "localhost" {
-		t.Errorf("Expected default Host to be 'localhost', got '%s'", config.Host)
+	if config.Host != "0.0.0.0" {
+		t.Errorf("Expected default Host to be '0.0.0.0', got '%s'", config.Host)
 	}
 	if config.Port != "8080" {
 		t.Errorf("Expected default Port to be '8080', got '%s'", config.Port)
@@ -183,7 +183,7 @@ func TestLoadConfig_EmptyEnvironmentVariables(t *testing.T) {
 	config := LoadConfig()
 
 	// Should use defaults since env vars are empty
-	if config.Host != "localhost" {
+	if config.Host != "0.0.0.0" {
 		t.Errorf("Expected Host default for empty env, got '%s'", config.Host)
 	}
 	if config.Port != "8080" {
