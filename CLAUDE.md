@@ -63,6 +63,55 @@ make test
 ./bin/lfx-access-check
 ```
 
+### Make Targets
+Available development and build targets:
+
+**Development:**
+```bash
+make setup-dev        # Install development tools (golangci-lint)
+make setup            # Setup development environment  
+make deps             # Install Go dependencies
+make apigen           # Generate API code using GOA
+make fmt              # Format Go code
+make vet              # Run go vet
+make lint             # Run golangci-lint
+make clean            # Clean build artifacts
+```
+
+**Building:**
+```bash
+make build            # Build for local OS
+make build-linux      # Build for Linux (production)
+make run              # Build and run locally
+```
+
+**Testing:**
+```bash
+make test             # Run unit tests with race detection
+make test-coverage    # Run tests with HTML coverage report
+```
+
+**Docker:**
+```bash
+make docker-build     # Build Docker image
+make docker-push      # Push image to registry
+make docker-run       # Run container locally
+```
+
+**Helm/Kubernetes:**
+```bash
+make helm-install     # Install Helm chart
+make helm-upgrade     # Upgrade Helm release
+make helm-templates   # Generate Helm templates
+make helm-uninstall   # Uninstall Helm release
+make helm-lint        # Lint Helm chart
+```
+
+**Utility:**
+```bash
+make help             # Show all available targets
+```
+
 ## API
 
 ### Access Check
@@ -132,8 +181,8 @@ helm upgrade --install lfx-v2-access-check ./charts/lfx-v2-access-check
 # Unit tests
 make test
 
-# Integration tests
-make test-integration
+# Integration tests (requires NATS and mock services)
+go test -v ./test/integration/
 
 # Specific package tests
 go test ./internal/service/
@@ -141,6 +190,32 @@ go test ./internal/service/
 # Test coverage
 make test-coverage
 ```
+
+### Integration Tests
+Integration tests are located in `test/integration/` and test the complete API endpoints with real dependencies:
+
+**Test Files:**
+- `access_check_test.go` - Tests access check endpoint with JWT validation
+- `health_test.go` - Tests health check endpoints (/livez, /readyz)
+- `plaintext_test.go` - Tests plaintext response handling
+- `mocks.go` - Mock services for testing
+
+**Running Integration Tests:**
+```bash
+# Run all integration tests
+go test -v ./test/integration/
+
+# Run specific test
+go test -v ./test/integration/ -run TestAccessCheck
+
+# Run with race detection
+go test -v -race ./test/integration/
+```
+
+**Prerequisites for Integration Tests:**
+- NATS server running (for messaging tests)
+- Mock JWT validation service
+- Test environment variables configured
 
 ## Deployment
 
