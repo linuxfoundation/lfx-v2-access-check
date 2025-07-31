@@ -1,0 +1,58 @@
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lfx-v2-access-check
+  namespace: lfx
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: lfx-v2-access-check
+  template:
+    metadata:
+      labels:
+        app: lfx-v2-access-check
+    spec:
+      containers:
+        - name: app
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+          imagePullPolicy: Never
+          ports:
+            - containerPort: {{ .Values.app.port }}
+              name: web
+          env:
+            - name: PORT
+              value: {{ .Values.app.port }}
+            - name: HOST
+              value: "{{ .Values.app.host }}"
+            - name: DEBUG
+              value: "{{ .Values.app.debug }}"
+            - name: AUDIENCE
+              value: "{{ .Values.app.audience }}"
+            - name: ISSUER
+              value: "{{ .Values.app.issuer }}"
+            - name: NATS_URL
+              value: "{{ .Values.nats.url }}"
+            - name: JWKS_URL
+              value: "{{ .Values.heimdall.url }}"
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: web
+            failureThreshold: 3
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: web
+            failureThreshold: 1
+            periodSeconds: 10
+          startupProbe:
+            httpGet:
+              path: /readyz
+              port: web
+            failureThreshold: 30
+            periodSeconds: 1

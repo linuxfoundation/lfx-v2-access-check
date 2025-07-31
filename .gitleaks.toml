@@ -1,0 +1,63 @@
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+
+# Gitleaks configuration for detecting secrets in Git repositories
+# https://github.com/zricethezav/gitleaks
+
+title = "LFX v2 Access Check Gitleaks Config"
+
+# Custom rules for LFX specific patterns
+[[rules]]
+id = "lfx-api-key"
+description = "LFX API Key"
+regex = '''(?i)(lfx[_-]?api[_-]?key|lfx[_-]?token)['":\s]*[=:]\s*['"]?[a-zA-Z0-9]{32,}['"]?'''
+tags = ["api-key", "lfx"]
+
+[[rules]]
+id = "jwt-secret"
+description = "JWT Secret"
+regex = '''(?i)(jwt[_-]?secret|jwt[_-]?key)['":\s]*[=:]\s*['"]?[a-zA-Z0-9+/=]{20,}['"]?'''
+tags = ["jwt", "secret"]
+
+[[rules]]
+id = "database-url"
+description = "Database connection string"
+regex = '''(?i)(database[_-]?url|db[_-]?url|connection[_-]?string)['":\s]*[=:]\s*['"]?(mysql|postgres|mongodb)://[^'">\s]+['"]?'''
+tags = ["database", "connection"]
+
+# Allowlist for known false positives
+[allowlist]
+description = "Allowlist for known false positives"
+paths = [
+    # Test files with mock data
+    ".*_test\\.go$",
+    ".*/testdata/.*",
+    ".*/mock/.*",
+    ".*/mocks/.*",
+    # Documentation examples
+    "README.md",
+    ".*/docs/.*\\.md$",
+    # Configuration templates
+    ".*\\.example$",
+    ".*\\.template$",
+    # Helm chart templates with placeholder values
+    ".*/charts/.*/templates/.*",
+    ".*/charts/.*/values\\.yaml$",
+]
+
+commits = [
+    # Add specific commit SHAs here if needed
+]
+
+regexes = [
+    # Common test patterns that might trigger false positives
+    "placeholder",
+    "example",
+    "test-token",
+    "mock-secret",
+    "dummy-key",
+    # Helm template placeholder values
+    "change-me-in-production",
+    # Base64 encoded test values
+    "YWNjZXNzLWNoZWNrLXNlY3JldC1wYWdlLXRva2VuLXNlY3JldA==",
+]
