@@ -21,11 +21,11 @@ spec:
           image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
           imagePullPolicy: Never
           ports:
-            - containerPort: {{ .Values.app.port }}
+            - containerPort: {{ .Values.app.port | int }}
               name: web
           env:
             - name: PORT
-              value: {{ .Values.app.port }}
+              value: "{{ .Values.app.port }}"
             - name: HOST
               value: "{{ .Values.app.host }}"
             - name: DEBUG

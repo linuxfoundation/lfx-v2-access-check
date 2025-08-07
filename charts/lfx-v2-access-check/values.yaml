@@ -11,7 +11,7 @@ image:
 # Application configuration
 app:
   # Server configuration
-  port: "8080"
+  port: 8080
   host: "*"
   debug: false
 
