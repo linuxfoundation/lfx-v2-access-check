@@ -32,4 +32,4 @@ nats:
 # heimdall is the configuration for the heimdall middleware
 heimdall:
   enabled: true
-  url: http://heimdall.lfx.svc.cluster.local:4456
+  url: http://lfx-platform-heimdall.lfx.svc.cluster.local:4456
