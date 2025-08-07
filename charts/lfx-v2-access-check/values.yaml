@@ -6,7 +6,8 @@ replicaCount: 1
 # Override from CLI/CI: --set image.tag=<git-sha>, etc.
 image:
   tag: "0.1.0"
-  repository: linuxfoundation/lfx-access-check
+  repository: ghcr.io/linuxfoundation/lfx-access-check
+  pullPolicy: IfNotPresent
 
 # Application configuration
 app:
