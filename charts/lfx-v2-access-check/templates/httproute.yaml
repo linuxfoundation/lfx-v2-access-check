@@ -1,0 +1,36 @@
+{{/*
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+*/}}
+{{- if .Values.traefik.enabled }}
+---
+kind: HTTPRoute
+metadata:
+  name: lfx-v2-access-check
+  namespace: {{ .Release.Namespace }}
+spec:
+  parentRefs:
+    - name: {{ .Values.traefik.gateway.name }}
+      namespace: {{ .Values.traefik.gateway.namespace }}
+  hostnames:
+    - "lfx-api.{{ .Values.lfx.domain }}"
+  rules:
+    - matches:
+        - path:
+            type: Exact
+            value: /access-check
+        - path:
+            type: PathPrefix
+            value: /access-check/
+      {{- if .Values.heimdall.enabled }}
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: traefik.io
+            kind: Middleware
+            name: heimdall
+      {{- end }}
+      backendRefs:
+        - name: lfx-v2-access-check
+          port: {{ .Values.app.port | int }}
+{{- end }}
