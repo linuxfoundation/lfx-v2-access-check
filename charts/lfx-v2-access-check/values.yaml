@@ -1,27 +1,34 @@
 # Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
-
+---
 replicaCount: 1
+
+lfx:
+  domain: k8s.orb.local
 
 # Override from CLI/CI: --set image.tag=<git-sha>, etc.
 image:
   tag: "0.1.0"
   repository: linuxfoundation/lfx-access-check
+  pullPolicy: IfNotPresent
 
 # Application configuration
 app:
   # Server configuration
-  port: "8080"
+  port: 8080
   host: "*"
   debug: false
 
   # JWT/Auth configuration
-  audience: "access-svc"
+  audience: "lfx-v2-access-check"
   issuer: "heimdall"
 
-# ingress is the configuration for the ingress routing
-ingress:
-  hostname: lfx-api.k8s.orb.local
+# HTTP routing configuration
+traefik:
+  enabled: true
+  gateway:
+    name: lfx-platform-gateway
+    namespace: lfx
 
 # nats is the configuration for the NATS server
 nats:
@@ -31,4 +38,4 @@ nats:
 # heimdall is the configuration for the heimdall middleware
 heimdall:
   enabled: true
-  url: http://heimdall.lfx.svc.cluster.local:4456
+  url: http://lfx-platform-heimdall.lfx.svc.cluster.local:4456
