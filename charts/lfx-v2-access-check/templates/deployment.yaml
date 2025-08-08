@@ -5,7 +5,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: lfx-v2-access-check
-  namespace: lfx
+  namespace: {{ .Release.Namespace }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
@@ -19,13 +19,13 @@ spec:
       containers:
         - name: app
           image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
-          imagePullPolicy: Never
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
-            - containerPort: {{ .Values.app.port }}
+            - containerPort: {{ .Values.app.port | int }}
               name: web
           env:
             - name: PORT
-              value: {{ .Values.app.port }}
+              value: "{{ .Values.app.port }}"
             - name: HOST
               value: "{{ .Values.app.host }}"
             - name: DEBUG
