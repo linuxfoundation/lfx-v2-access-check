@@ -49,6 +49,6 @@ rules:
 # Ignore certain files
 ignore: |
   .github/workflows/
-  charts/*/templates/
+  charts/*/templates/**
   vendor/
   node_modules/
