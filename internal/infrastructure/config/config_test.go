@@ -68,7 +68,7 @@ func TestLoadConfig_Defaults(t *testing.T) {
 		t.Errorf("Expected default JWKSUrl, got '%s'", config.JWKSUrl)
 	}
 	if config.Audience != "lfx-v2-access-check" {
-		t.Errorf("Expected default Audience to be 'access-check', got '%s'", config.Audience)
+		t.Errorf("Expected default Audience to be 'lfx-v2-access-check', got '%s'", config.Audience)
 	}
 	if config.Issuer != "heimdall" {
 		t.Errorf("Expected default Issuer to be 'heimdall', got '%s'", config.Issuer)
