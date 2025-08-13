@@ -25,7 +25,7 @@ const (
 
 	// Authentication defaults
 	DefaultJWKSURL  = "http://heimdall:4457/.well-known/jwks"
-	DefaultAudience = "access-check"
+	DefaultAudience = "lfx-v2-access-check"
 	DefaultIssuer   = "heimdall"
 
 	// Messaging defaults
