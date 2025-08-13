@@ -24,7 +24,7 @@ func TestConfig_NewInstance(t *testing.T) {
 		Port:     "8080",
 		Debug:    false,
 		JWKSUrl:  "http://heimdall:4457/.well-known/jwks",
-		Audience: "access-check",
+		Audience: "lfx-v2-access-check",
 		Issuer:   "heimdall",
 		NATSUrl:  "nats://nats:4222",
 	}
@@ -67,8 +67,8 @@ func TestLoadConfig_Defaults(t *testing.T) {
 	if config.JWKSUrl != "http://heimdall:4457/.well-known/jwks" {
 		t.Errorf("Expected default JWKSUrl, got '%s'", config.JWKSUrl)
 	}
-	if config.Audience != "access-check" {
-		t.Errorf("Expected default Audience to be 'access-check', got '%s'", config.Audience)
+	if config.Audience != "lfx-v2-access-check" {
+		t.Errorf("Expected default Audience to be 'lfx-v2-access-check', got '%s'", config.Audience)
 	}
 	if config.Issuer != "heimdall" {
 		t.Errorf("Expected default Issuer to be 'heimdall', got '%s'", config.Issuer)

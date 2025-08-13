@@ -1,28 +1,14 @@
 # Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
-
+{{- if .Values.heimdall.enabled }}
 ---
 apiVersion: heimdall.dadrus.github.com/v1alpha4
 kind: RuleSet
 metadata:
   name: lfx-v2-access-check
-  namespace: lfx
+  namespace: {{ .Release.Namespace }}
 spec:
   rules:
-    - id: "rule:lfx-v2-access-check:health"
-      match:
-        methods:
-          - GET
-        routes:
-          - path: /livez
-          - path: /readyz
-      execute:
-        - authenticator: anonymous_authenticator
-        - authorizer: allow_all
-        - finalizer: create_jwt
-          config:
-            values:
-              aud: lfx-v2-access-check
     - id: "rule:lfx-v2-access-check:access-check"
       match:
         methods:
@@ -35,4 +21,5 @@ spec:
         - finalizer: create_jwt
           config:
             values:
-              aud: lfx-v2-access-check
+              aud: {{ .Values.app.audience }}
+{{- end }}

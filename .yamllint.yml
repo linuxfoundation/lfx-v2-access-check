@@ -1,7 +1,7 @@
 # YAML Lint configuration
 # Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
-
+---
 extends: default
 
 rules:
@@ -21,7 +21,7 @@ rules:
 
   # Document start
   document-start:
-    present: false
+    present: true
 
   # Empty lines
   empty-lines:
@@ -49,6 +49,6 @@ rules:
 # Ignore certain files
 ignore: |
   .github/workflows/
-  charts/*/templates/
+  charts/*/templates/**
   vendor/
   node_modules/

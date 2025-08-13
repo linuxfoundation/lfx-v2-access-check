@@ -118,7 +118,7 @@ The service is configured via environment variables:
 | `PORT` | Server port | `8080` |
 | `DEBUG` | Enable debug logging | `false` |
 | `JWKS_URL` | Heimdall JWKS endpoint | `http://heimdall:4457/.well-known/jwks` |
-| `AUDIENCE` | JWT audience | `access-check` |
+| `AUDIENCE` | JWT audience | `lfx-v2-access-check` |
 | `ISSUER` | JWT issuer | `heimdall` |
 | `NATS_URL` | NATS server URL | `nats://nats:4222` |
 
