@@ -8,9 +8,10 @@ lfx:
 
 # Override from CLI/CI: --set image.tag=<git-sha>, etc.
 image:
-  tag: "0.1.0"
-  repository: linuxfoundation/lfx-access-check
+  repository: ghcr.io/linuxfoundation/lfx-v2-access-check/lfx-access-check
   pullPolicy: IfNotPresent
+  # Container image tag, Defaults to appVersion from Chart.yaml if not set
+  tag: ""
 
 # Application configuration
 app:
