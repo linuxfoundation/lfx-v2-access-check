@@ -143,8 +143,8 @@ func TestCheckAccess_Success(t *testing.T) {
 	authRepo := &mockAuthRepository{}
 	messagingRepo := &mockMessagingRepository{
 		requestFunc: func(_ context.Context, subject string, _ []byte, _ time.Duration) ([]byte, error) {
-			if subject != "dev.lfx.access_check.request" {
-				t.Errorf("Expected subject 'dev.lfx.access_check.request', got '%s'", subject)
+			if subject != "lfx.access_check.request" {
+				t.Errorf("Expected subject 'lfx.access_check.request', got '%s'", subject)
 			}
 			return []byte("allow"), nil
 		},
