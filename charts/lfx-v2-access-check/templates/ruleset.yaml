@@ -16,7 +16,7 @@ spec:
         routes:
           - path: /access-check
       execute:
-        - authenticator: anonymous_authenticator
+        - authenticator: oidc
         - authorizer: allow_all
         - finalizer: create_jwt
           config:

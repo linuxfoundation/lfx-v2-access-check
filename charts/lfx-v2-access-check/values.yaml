@@ -40,3 +40,4 @@ nats:
 heimdall:
   enabled: true
   url: http://lfx-platform-heimdall.lfx.svc.cluster.local:4456
+  jwks_url: http://lfx-platform-heimdall:4457/.well-known/jwks
