@@ -37,7 +37,7 @@ spec:
             - name: NATS_URL
               value: "{{ .Values.nats.url }}"
             - name: JWKS_URL
-              value: "{{ .Values.heimdall.url }}"
+              value: "{{ .Values.heimdall.jwks_url }}"
           livenessProbe:
             httpGet:
               path: /livez
