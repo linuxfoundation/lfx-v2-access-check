@@ -21,6 +21,9 @@ spec:
         - path:
             type: PathPrefix
             value: /access-check/
+        - path:
+            type: PathPrefix
+            value: /_access-check/
       {{- if .Values.heimdall.enabled }}
       filters:
         - type: ExtensionRef

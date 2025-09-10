@@ -5,5 +5,5 @@ apiVersion: v2
 name: lfx-v2-access-check
 description: LFX Platform V2 Access Check Service chart
 type: application
-version: 0.2.2
+version: 0.2.3
 appVersion: "0.1.0"
