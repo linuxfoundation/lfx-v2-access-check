@@ -1,6 +1,7 @@
 openapi: 3.0.3
 info:
-    title: Goa API
+    title: LFX V2 - Access Check Service
+    description: LFX Access Check Service for bulk access checks
     version: 0.0.1
 servers:
     - url: http://localhost:80
@@ -61,55 +62,6 @@ paths:
                                 $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
-    /livez:
-        get:
-            tags:
-                - access-svc
-            summary: livez access-svc
-            description: Check if service is alive
-            operationId: access-svc#livez
-            responses:
-                "200":
-                    description: OK response.
-                    content:
-                        text/plain:
-                            schema:
-                                type: string
-                                example: OK
-                                format: binary
-                            example: OK
-    /openapi.json:
-        get:
-            tags:
-                - access-svc
-            summary: Download gen/http/openapi3.json
-            operationId: access-svc#/openapi.json
-            responses:
-                "200":
-                    description: File downloaded
-    /readyz:
-        get:
-            tags:
-                - access-svc
-            summary: readyz access-svc
-            description: Check if service is ready
-            operationId: access-svc#readyz
-            responses:
-                "200":
-                    description: OK response.
-                    content:
-                        text/plain:
-                            schema:
-                                type: string
-                                example: OK
-                                format: binary
-                            example: OK
-                "503":
-                    description: 'NotReady: Service not ready'
-                    content:
-                        application/vnd.goa.error:
-                            schema:
-                                $ref: '#/components/schemas/Error'
 components:
     schemas:
         AccessErrorResult:
@@ -136,7 +88,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Dignissimos eos cum recusandae magni est.
+                        example: Provident corrupti.
                     description: Resource-action pairs to check
                     example:
                         - project:123:read
@@ -155,7 +107,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Magnam rerum doloremque voluptatem veniam.
+                        example: Itaque aut sit dignissimos eos cum.
                     description: Access check results
                     example:
                         - allow
@@ -188,19 +140,19 @@ components:
                 temporary:
                     type: boolean
                     description: Is the error temporary?
-                    example: false
+                    example: true
                 timeout:
                     type: boolean
                     description: Is the error a timeout?
-                    example: false
+                    example: true
             description: Bad request
             example:
                 fault: true
                 id: 123abc
                 message: parameter 'p' must be an integer
                 name: bad_request
-                temporary: false
-                timeout: true
+                temporary: true
+                timeout: false
             required:
                 - name
                 - id

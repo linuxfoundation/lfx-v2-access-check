@@ -34,7 +34,12 @@ func TestAccessCheckEndpoint(t *testing.T) {
 		func(_ context.Context, _ http.ResponseWriter, err error) {
 			t.Logf("Error handler called: %v", err)
 		},
-		nil, nil)
+		nil, // formatter
+		nil, // file system for openapi.json
+		nil, // file system for openapi.yaml
+		nil, // file system for openapi3.json
+		nil, // file system for openapi3.yaml
+	)
 
 	accesssvcsvr.Mount(mux, server)
 

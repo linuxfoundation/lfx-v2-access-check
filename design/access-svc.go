@@ -9,6 +9,12 @@ import (
 	. "goa.design/goa/v3/dsl"
 )
 
+// API defines the metadata for the access check service API.
+var _ = API("access-svc", func() {
+	Title("LFX V2 - Access Check Service")
+	Description("LFX Access Check Service for bulk access checks")
+})
+
 // JWTAuth defines the JWT authentication security scheme for the service.
 var JWTAuth = JWTSecurity("jwt", func() {
 	Description("Heimdall authorization")
@@ -71,6 +77,7 @@ var _ = Service("access-svc", func() {
 			})
 			Response("NotReady", StatusServiceUnavailable)
 		})
+		Meta("swagger:generate", "false")
 	})
 
 	Method("livez", func() {
@@ -84,7 +91,19 @@ var _ = Service("access-svc", func() {
 				ContentType("text/plain")
 			})
 		})
+		Meta("swagger:generate", "false")
 	})
 
-	Files("/openapi.json", "gen/http/openapi3.json")
+	Files("/_access-check/openapi.json", "gen/http/openapi.json", func() {
+		Meta("swagger:generate", "false")
+	})
+	Files("/_access-check/openapi.yaml", "gen/http/openapi.yaml", func() {
+		Meta("swagger:generate", "false")
+	})
+	Files("/_access-check/openapi3.json", "gen/http/openapi3.json", func() {
+		Meta("swagger:generate", "false")
+	})
+	Files("/_access-check/openapi3.yaml", "gen/http/openapi3.yaml", func() {
+		Meta("swagger:generate", "false")
+	})
 })
