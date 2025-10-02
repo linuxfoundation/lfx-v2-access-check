@@ -9,7 +9,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   parentRefs:
-    - name: {{ .Values.traefik.gateway.name }}
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ .Values.traefik.gateway.name }}
       namespace: {{ .Values.traefik.gateway.namespace }}
   hostnames:
     - "lfx-api.{{ .Values.lfx.domain }}"
@@ -33,6 +35,9 @@ spec:
             name: heimdall
       {{- end }}
       backendRefs:
-        - name: lfx-v2-access-check
+        - group: ""
+          kind: Service
+          name: lfx-v2-access-check
           port: {{ .Values.app.port | int }}
+          weight: 1
 {{- end }}
