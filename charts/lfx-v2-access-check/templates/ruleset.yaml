@@ -10,6 +10,7 @@ metadata:
 spec:
   rules:
     - id: "rule:lfx-v2-access-check:access-check"
+      allow_encoded_slashes: "off"
       match:
         methods:
           - POST
@@ -23,6 +24,7 @@ spec:
             values:
               aud: {{ .Values.app.audience }}
     - id: "rule:lfx-v2-access-check:openapi"
+      allow_encoded_slashes: "off"
       match:
         methods:
           - GET
