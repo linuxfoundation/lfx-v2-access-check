@@ -38,6 +38,10 @@ spec:
               value: "{{ .Values.nats.url }}"
             - name: JWKS_URL
               value: "{{ .Values.heimdall.jwks_url }}"
+          {{- if .Values.app.resources }}
+          resources:
+            {{- toYaml .Values.app.resources | nindent 12 }}
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /livez
