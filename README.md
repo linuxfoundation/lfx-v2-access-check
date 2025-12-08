@@ -171,6 +171,7 @@ docker run -p 8080:8080 \
 ```
 ├── cmd/lfx-access-check/    # Application entry point
 ├── design/                  # Goa API design definitions
+├── docs/                    # Documentation
 ├── gen/                     # Generated API code (Goa)
 ├── internal/
 │   ├── container/          # Dependency injection
