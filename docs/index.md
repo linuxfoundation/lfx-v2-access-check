@@ -201,5 +201,6 @@ helm upgrade --install lfx-v2-access-check ./charts/lfx-v2-access-check \
 
 ## 📄 License
 
+<!-- markdown-link-check-disable -->
 This project is licensed under the MIT License - see the [LICENSE](/LICENSE) file for details.
 
