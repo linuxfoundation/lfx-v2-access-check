@@ -168,7 +168,7 @@ docker run -p 8080:8080 \
 
 ### Project Structure
 
-```
+```text
 ├── cmd/lfx-access-check/    # Application entry point
 ├── design/                  # Goa API design definitions
 ├── docs/                    # Documentation
@@ -201,5 +201,5 @@ helm upgrade --install lfx-v2-access-check ./charts/lfx-v2-access-check \
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.
 

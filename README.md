@@ -168,7 +168,7 @@ docker run -p 8080:8080 \
 
 ### Project Structure
 
-```
+```text
 ├── cmd/lfx-access-check/    # Application entry point
 ├── design/                  # Goa API design definitions
 ├── docs/                    # Documentation
