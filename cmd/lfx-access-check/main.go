@@ -13,6 +13,7 @@ import (
 
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/infrastructure/config"
 	"github.com/linuxfoundation/lfx-v2-access-check/pkg/log"
+	"github.com/linuxfoundation/lfx-v2-access-check/pkg/utils"
 )
 
 func init() {
@@ -24,11 +25,25 @@ func main() {
 	// Load configuration with CLI flags and environment variables
 	cfg := config.LoadConfig()
 
+	// Set up OpenTelemetry SDK.
+	ctx := context.Background()
+	otelConfig := utils.OTelConfigFromEnv()
+	otelShutdown, err := utils.SetupOTelSDKWithConfig(ctx, otelConfig)
+	if err != nil {
+		slog.Error("error setting up OpenTelemetry SDK", "error", err)
+		os.Exit(1)
+	}
+	defer func() {
+		if shutdownErr := otelShutdown(context.Background()); shutdownErr != nil {
+			slog.Error("error shutting down OpenTelemetry SDK", "error", shutdownErr)
+		}
+	}()
+
 	// Setup signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	go func() {
