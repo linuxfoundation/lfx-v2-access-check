@@ -10,11 +10,21 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/infrastructure/config"
 	"github.com/linuxfoundation/lfx-v2-access-check/pkg/log"
 	"github.com/linuxfoundation/lfx-v2-access-check/pkg/utils"
 )
+
+// Build-time variables set via ldflags
+var (
+	Version   = "dev"
+	BuildTime = "unknown"
+	GitCommit = "unknown"
+)
+
+const gracefulShutdownSeconds = 25
 
 func init() {
 	// slog is the standard library logger, we use it to log errors
@@ -26,16 +36,24 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// Set up OpenTelemetry SDK.
+	// Command-line/environment OTEL_SERVICE_VERSION takes precedence over
+	// the build-time Version variable.
 	ctx := context.Background()
 	otelConfig := utils.OTelConfigFromEnv()
+	if otelConfig.ServiceVersion == "" {
+		otelConfig.ServiceVersion = Version
+	}
 	otelShutdown, err := utils.SetupOTelSDKWithConfig(ctx, otelConfig)
 	if err != nil {
-		slog.Error("error setting up OpenTelemetry SDK", "error", err)
+		slog.With(log.ErrKey, err).Error("error setting up OpenTelemetry SDK")
 		os.Exit(1)
 	}
+	// Handle shutdown properly so nothing leaks.
 	defer func() {
-		if shutdownErr := otelShutdown(context.Background()); shutdownErr != nil {
-			slog.Error("error shutting down OpenTelemetry SDK", "error", shutdownErr)
+		ctx, cancel := context.WithTimeout(context.Background(), gracefulShutdownSeconds*time.Second)
+		defer cancel()
+		if shutdownErr := otelShutdown(ctx); shutdownErr != nil {
+			slog.With(log.ErrKey, shutdownErr).Error("error shutting down OpenTelemetry SDK")
 		}
 	}()
 
