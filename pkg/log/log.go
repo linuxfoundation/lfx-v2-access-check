@@ -22,6 +22,9 @@ const (
 	debug = "debug"
 	warn  = "warn"
 	info  = "info"
+
+	// ErrKey is the standard key for error attributes in structured logs.
+	ErrKey = "error"
 )
 
 type contextHandler struct {
