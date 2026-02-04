@@ -9,6 +9,8 @@ import (
 	"log"
 	"log/slog"
 	"os"
+
+	slogotel "github.com/remychantenay/slog-otel"
 )
 
 type ctxKey string
@@ -20,6 +22,9 @@ const (
 	debug = "debug"
 	warn  = "warn"
 	info  = "info"
+
+	// ErrKey is the standard key for error attributes in structured logs.
+	ErrKey = "error"
 )
 
 type contextHandler struct {
@@ -100,6 +105,11 @@ func InitStructureLogConfig() {
 	}
 	h = slog.NewJSONHandler(os.Stdout, logOptions)
 	log.SetFlags(log.Llongfile)
-	logger := contextHandler{h}
+
+	// Wrap with slog-otel handler to add trace_id and span_id from context
+	otelHandler := slogotel.OtelHandler{Next: h}
+
+	// Wrap with contextHandler to support context-based attributes
+	logger := contextHandler{otelHandler}
 	slog.SetDefault(slog.New(logger))
 }

@@ -18,6 +18,7 @@ import (
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/middleware"
 	"github.com/linuxfoundation/lfx-v2-access-check/pkg/constants"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"goa.design/clue/debug"
 	goahttp "goa.design/goa/v3/http"
 )
@@ -97,6 +98,9 @@ func handleHTTPServer(ctx context.Context, cfg *config.Config, endpoints *access
 		if cfg.Debug {
 			handler = debug.HTTP()(handler)
 		}
+
+		// Wrap the handler with OpenTelemetry instrumentation
+		handler = otelhttp.NewHandler(handler, "access-check")
 	}
 
 	// Create HTTP server
