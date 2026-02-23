@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/domain/contracts"
 	"github.com/linuxfoundation/lfx-v2-access-check/pkg/constants"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -43,8 +45,16 @@ func NewAuthRepository(jwksURL, issuer, audience string) (contracts.AuthReposito
 		return nil, err
 	}
 
-	// Set up JWKS provider
-	provider := jwks.NewCachingProvider(issuerU, constants.DefaultJWKSCacheTimeout, jwks.WithCustomJWKSURI(jwksU))
+	// Set up JWKS provider with OTel-instrumented HTTP client
+	httpClient := &http.Client{
+		Transport: otelhttp.NewTransport(http.DefaultTransport),
+	}
+	provider := jwks.NewCachingProvider(
+		issuerU,
+		constants.DefaultJWKSCacheTimeout,
+		jwks.WithCustomJWKSURI(jwksU),
+		jwks.WithCustomClient(httpClient),
+	)
 
 	// Factory for custom JWT claims
 	customClaims := func() validator.CustomClaims {
