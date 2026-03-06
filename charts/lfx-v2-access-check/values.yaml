@@ -3,6 +3,10 @@
 ---
 replicaCount: 3
 
+podAnnotations: {}
+
+podLabels: {}
+
 lfx:
   domain: k8s.orb.local
 
