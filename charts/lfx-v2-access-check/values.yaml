@@ -3,6 +3,11 @@
 ---
 replicaCount: 3
 
+podDisruptionBudget:
+  enabled: false
+  # minAvailable: 1
+  # maxUnavailable: 1
+
 lfx:
   domain: k8s.orb.local
 
