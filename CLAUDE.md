@@ -122,7 +122,7 @@ Content-Type: application/json
 
 {
   "version": "1",
-  "requests": ["project:read:proj-123", "committee:write:comm-456"]
+  "requests": ["project:123#read", "committee:456#write"]
 }
 ```
 

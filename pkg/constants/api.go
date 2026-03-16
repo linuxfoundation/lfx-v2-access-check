@@ -6,6 +6,6 @@ package constants
 
 // API example values for documentation
 const (
-	ExampleProjectAction   = "project:123:read"
-	ExampleCommitteeAction = "committee:456:write"
+	ExampleProjectAction   = "project:123#read"
+	ExampleCommitteeAction = "committee:456#write"
 )
