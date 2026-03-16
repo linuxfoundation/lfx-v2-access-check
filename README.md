@@ -1,23 +1,23 @@
-# LFX v2 Access Check Service
+# LFX Access Check Service
 
 ![Build Status](https://github.com/linuxfoundation/lfx-v2-access-check/workflows/Access%20Check%20Service%20Build/badge.svg)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)
 
-A access check service for the LFX v2 platform, providing centralized authorization and permission management across LFX services.
+An access check service for the LFX Self-Service platform, providing centralized authorization and permission management across LFX services.
 
-## ✨ Key Features
+## Key Features
 
-- **🚀 Bulk Access Checks**: Process multiple resource-action permission checks in a single HTTP request
-- **🔐 JWT Authentication**: Secure authentication using Heimdall-issued JWT tokens
-- **🔄 Real-time Processing**: Asynchronous message processing via NATS queue
-- **🚢 Cloud Native**: Kubernetes-ready with Helm charts for easy deployment
+- **Bulk Access Checks**: Process multiple resource-action permission checks in a single HTTP request
+- **JWT Authentication**: Secure authentication using Heimdall-issued JWT tokens
+- **Real-time Processing**: Asynchronous message processing via NATS, evaluated by fga-sync
+- **Cloud Native**: Kubernetes-ready with Helm charts for easy deployment
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ```mermaid
 graph TB
-    subgraph "LFX v2 Platform Gateway"
+    subgraph "LFX Self-Service Platform Gateway"
         T[Traefik<br/>API Gateway]
         H[Heimdall<br/>Access Decision Service]
     end
@@ -30,17 +30,21 @@ graph TB
 
     subgraph "Platform Infrastructure"
         N[NATS<br/>Message Queue]
+        FGA[fga-sync<br/>Permission Evaluator]
     end
 
     T --> H
     H --> AC
     AC --> AS
     AC --> HE
-    
-    AS <-->|bulk access checks<br/>access-check subject| N
+
+    AS -->|publish bulk access check| N
+    N -->|evaluate permissions| FGA
+    FGA -->|return results| N
+    N -->|authorization results| AS
 ```
 
-## 🔄 Access Check Flow
+## Access Check Flow
 
 ```mermaid
 sequenceDiagram
@@ -49,64 +53,78 @@ sequenceDiagram
     participant Heimdall as Heimdall Access Decision
     participant AccessCheck as Access Check Service
     participant NATS as NATS Queue
+    participant FGASync as fga-sync
 
-    Client->>Traefik: POST /access-check<br/>Bearer: JWT + resource list
+    Client->>Traefik: POST /access-check?v=1<br/>Bearer: JWT + resource list
     Traefik->>Heimdall: Validate JWT & authorize
     Heimdall-->>Traefik: Auth success
     Traefik->>AccessCheck: Forward authenticated request
-    
+
     AccessCheck->>AccessCheck: Extract principal from JWT
     AccessCheck->>AccessCheck: Build resource-action pairs
-    AccessCheck->>NATS: Publish bulk access check<br/>Subject: access-check
-    
-    NATS-->>AccessCheck: Return authorization results
+    AccessCheck->>NATS: Publish bulk access check
+
+    NATS->>FGASync: Deliver check request
+    FGASync->>FGASync: Evaluate permissions in OpenFGA
+    FGASync-->>NATS: Return allow/deny results
+
+    NATS-->>AccessCheck: Authorization results
     AccessCheck-->>Traefik: JSON response with decisions
     Traefik-->>Client: Access check results
 
-    Note over AccessCheck: Optimized for bulk operations<br/>with comprehensive logging
+    Note over AccessCheck,FGASync: Results correspond 1:1 with<br/>the input requests array
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
-- **Go**: 1.24.0 
+- **Go**: 1.24.0+
 - **Docker**: For containerized deployment
 - **NATS**: Message queue for service communication
+- **fga-sync**: Permission evaluator (processes access check messages from NATS)
 - **Heimdall**: JWT authentication provider
 
 ### Local Development
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/linuxfoundation/lfx-v2-access-check.git
    cd lfx-v2-access-check
    ```
 
 2. **Install dependencies**
+
    ```bash
    make deps
    ```
 
 3. **Generate API code** (if needed)
+
    ```bash
    make apigen
    ```
 
 4. **Build the service**
+
    ```bash
    make build
    ```
 
 5. **Run tests**
+
    ```bash
    make test
    ```
 
 6. **Start the service**
+
    ```bash
    ./bin/lfx-access-check
    ```
+
+Run `make help` to see all available targets, including linting, coverage, Docker, and Helm commands.
 
 ### Configuration
 
@@ -122,25 +140,55 @@ The service is configured via environment variables:
 | `ISSUER` | JWT issuer | `heimdall` |
 | `NATS_URL` | NATS server URL | `nats://nats:4222` |
 
-### Docker Deployment
+## API Reference
 
-```bash
-# Build image
-make docker-build
+### Check Access
 
-# Run container
-docker run -p 8080:8080 \
-  -e JWKS_URL=http://heimdall:4457/.well-known/jwks \
-  -e NATS_URL=nats://nats:4222 \
-  linuxfoundation/lfx-access-check:latest
 ```
+POST /access-check?v=1
+Authorization: Bearer <JWT_TOKEN>
+Content-Type: application/json
+```
+
+**Request body:**
+
+```json
+{
+  "requests": [
+    "project:123#read",
+    "committee:456#write"
+  ]
+}
+```
+
+**Response:** Results are returned in the same order as the input `requests` array.
+
+```json
+{
+  "results": [
+    "allow",
+    "deny"
+  ]
+}
+```
+
+Each result is either `"allow"` or `"deny"`. The resource-action pair format is `{type}:{id}#{action}`.
 
 ### Health Endpoints
 
-- **Liveness**: `GET /livez` - Basic service health
-- **Readiness**: `GET /readyz` - Service + dependencies health
+- `GET /livez` — Liveness probe (basic service health)
+- `GET /readyz` — Readiness probe (service + dependencies)
 
-## 🏛️ Architecture Details
+### OpenAPI Spec
+
+The service serves its own OpenAPI spec at:
+
+- `/_access-check/openapi.json`
+- `/_access-check/openapi.yaml`
+- `/_access-check/openapi3.json`
+- `/_access-check/openapi3.yaml`
+
+## Architecture Details
 
 ### Core Components
 
@@ -171,7 +219,7 @@ docker run -p 8080:8080 \
 ```
 ├── cmd/lfx-access-check/    # Application entry point
 ├── design/                  # Goa API design definitions
-├── gen/                     # Generated API code (Goa)
+├── gen/                     # Generated API code (Goa) — do not edit
 ├── internal/
 │   ├── container/          # Dependency injection
 │   ├── domain/contracts/   # Domain models & interfaces
@@ -186,21 +234,61 @@ docker run -p 8080:8080 \
 └── charts/               # Helm deployment charts
 ```
 
-## 🚢 Deployment
+## Testing
+
+### Unit Tests
+
+```bash
+make test
+```
+
+### Integration Tests
+
+Integration tests are in `test/integration/` and use mock dependencies — no external services required.
+
+```bash
+go test -v ./test/integration/
+```
+
+### Coverage Report
+
+```bash
+make test-coverage   # generates coverage.html
+```
+
+## Deployment
+
+### Docker
+
+The production image is published to GHCR. Available tags:
+
+| Tag | Published when |
+|-----|---------------|
+| `latest` | On every tagged release |
+| `vX.Y.Z` | On every tagged release (e.g. `v0.2.8`) |
+| `<commit-sha>` | On every merge to `main` and every open PR |
+| `development` | On every merge to `main` |
+
+Browse all published tags at: `https://github.com/linuxfoundation/lfx-v2-access-check/pkgs/container/lfx-v2-access-check%2Flfx-access-check`
+
+```bash
+docker run -p 8080:8080 ghcr.io/linuxfoundation/lfx-v2-access-check/lfx-access-check:latest
+```
+
+To build and run locally from source:
+
+```bash
+make docker-build
+make docker-run
+```
 
 ### Kubernetes with Helm
 
 ```bash
-# Install/upgrade with Helm
-helm upgrade --install lfx-v2-access-check ./charts/lfx-v2-access-check \
-  --set image.tag=latest \
-  --set config.jwksUrl=http://heimdall:4457/.well-known/jwks \
-  --set config.natsUrl=nats://nats:4222
+make helm-install
 ```
 
-#### Local Values Override
-
-For local development, you can override chart values without modifying the committed `values.yaml`. Copy the example file and customize it:
+This installs using the committed `values.yaml`. For local development, you can override values without modifying `values.yaml`. Copy the example file and customize it:
 
 ```bash
 cp charts/lfx-v2-access-check/values.local.example.yaml charts/lfx-v2-access-check/values.local.yaml
@@ -216,7 +304,6 @@ make helm-install-local
 make helm-templates-local
 ```
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
