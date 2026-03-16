@@ -15,6 +15,7 @@ DOCKER_TAG := $(VERSION)
 HELM_CHART_PATH=./charts/lfx-v2-access-check
 HELM_RELEASE_NAME=lfx-v2-access-check
 HELM_NAMESPACE=lfx
+HELM_VALUES_FILE=$(HELM_CHART_PATH)/values.local.yaml
 
 # Go
 GO_VERSION := 1.24.2
@@ -138,16 +139,26 @@ helm-install: ## Install Helm chart
 	helm upgrade --install $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) --namespace $(HELM_NAMESPACE) --create-namespace --set image.tag=$(DOCKER_TAG)
 	@echo "==> Helm chart installed: $(HELM_RELEASE_NAME)"
 
-.PHONY: helm-upgrade
-helm-upgrade: ## Upgrade Helm release
-	@echo "==> Upgrading Helm chart..."
-	helm upgrade $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) --namespace $(HELM_NAMESPACE) --set image.tag=$(DOCKER_TAG)
-	@echo "==> Helm chart upgraded: $(HELM_RELEASE_NAME)"
+.PHONY: helm-install-local
+helm-install-local: ## Install Helm chart with local values file
+	@echo "==> Installing Helm chart with local values..."
+	helm upgrade --force --install $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) \
+		--namespace $(HELM_NAMESPACE) --create-namespace \
+		--values $(HELM_VALUES_FILE)
+	@echo "==> Helm chart installed: $(HELM_RELEASE_NAME)"
 
 .PHONY: helm-templates
 helm-templates: ## Generate Helm templates
 	@echo "==> Printing templates for Helm chart..."
 	helm template $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) --namespace $(HELM_NAMESPACE) --set image.tag=$(DOCKER_TAG)
+	@echo "==> Templates printed for Helm chart: $(HELM_RELEASE_NAME)"
+
+.PHONY: helm-templates-local
+helm-templates-local: ## Generate Helm templates with local values file
+	@echo "==> Rendering Helm templates with local values..."
+	helm template $(HELM_RELEASE_NAME) $(HELM_CHART_PATH) \
+		--namespace $(HELM_NAMESPACE) \
+		--values $(HELM_VALUES_FILE)
 	@echo "==> Templates printed for Helm chart: $(HELM_RELEASE_NAME)"
 
 .PHONY: helm-uninstall
