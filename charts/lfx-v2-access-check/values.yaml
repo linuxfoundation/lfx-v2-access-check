@@ -15,6 +15,13 @@ podAnnotations: {}
 #   environment: production
 podLabels: {}
 
+# podDisruptionBudget configures a PodDisruptionBudget for the deployment.
+# Only one of minAvailable or maxUnavailable may be set (not both).
+podDisruptionBudget:
+  enabled: false
+  # minAvailable: 1
+  # maxUnavailable: 1
+
 lfx:
   domain: k8s.orb.local
 
