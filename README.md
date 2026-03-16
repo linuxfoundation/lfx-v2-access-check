@@ -268,6 +268,7 @@ The production image is published to GHCR. Available tags:
 | `vX.Y.Z` | On every tagged release (e.g. `v0.2.8`) |
 | `<commit-sha>` | On every merge to `main` and every open PR |
 | `development` | On every merge to `main` |
+| `<branch-name>` | On every open PR (special characters replaced with `-`, e.g. `my-feature-branch`) |
 
 Browse all published tags at: `https://github.com/linuxfoundation/lfx-v2-access-check/pkgs/container/lfx-v2-access-check%2Flfx-access-check`
 

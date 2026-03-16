@@ -10,7 +10,7 @@
 
 ## Architecture
 
-```
+```text
 Client → Traefik → Heimdall → Access Check Service → NATS → fga-sync
 ```
 
@@ -123,7 +123,7 @@ make help             # Show all available targets
 
 Version is passed as a query parameter (`?v=1`), not in the request body.
 
-```
+```http
 POST /access-check?v=1
 Authorization: Bearer <JWT_TOKEN>
 Content-Type: application/json
