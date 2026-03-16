@@ -198,6 +198,24 @@ helm upgrade --install lfx-v2-access-check ./charts/lfx-v2-access-check \
   --set config.natsUrl=nats://nats:4222
 ```
 
+#### Local Values Override
+
+For local development, you can override chart values without modifying the committed `values.yaml`. Copy the example file and customize it:
+
+```bash
+cp charts/lfx-v2-access-check/values.local.example.yaml charts/lfx-v2-access-check/values.local.yaml
+```
+
+`values.local.yaml` is gitignored. Edit it with any overrides you need (e.g. image tag, replica count), then use the local make targets:
+
+```bash
+# Install using your local values file
+make helm-install-local
+
+# Preview rendered templates with your local values
+make helm-templates-local
+```
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
