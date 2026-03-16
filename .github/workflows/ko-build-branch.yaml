@@ -1,20 +1,20 @@
 # Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
 ---
-name: Publish Main
+name: Publish Container Branch
 
-'on':
-  push:
+"on":
+  pull_request:
     branches:
       - main
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   publish:
-    name: Publish Main
+    name: Publish Container
+    if: ${{ github.event.pull_request.head.repo.fork == false }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -27,18 +27,18 @@ jobs:
       - uses: ko-build/setup-ko@d006021bd0c28d1ce33a07e7943d48b079944c8d  # v0.9
         with:
           version: v0.17.1
-      - name: Build and publish service image
+      - name: Prepare container tag
+        id: container_tag
         env:
-          VERSION: development
-          GIT_COMMIT: ${{ github.sha }}
+          HEAD_REF: "${{ github.head_ref }}"
         run: |
-          BUILD_TIME=$(date -u '+%Y-%m-%d_%H:%M:%S')
-          export BUILD_TIME
-          GIT_COMMIT=${GIT_COMMIT:0:7}
-          export GIT_COMMIT
+          container_tag=$(echo "$HEAD_REF" | sed 's/[^_0-9a-zA-Z]/-/g' | cut -c -127)
+          echo tag="$container_tag" >> "$GITHUB_OUTPUT"
+      - name: Build lfx-access-check for PR
+        run: |
           ko build github.com/linuxfoundation/lfx-v2-access-check/cmd/lfx-access-check \
             -B \
             --platform linux/amd64,linux/arm64 \
             -t ${{ github.sha }} \
-            -t development \
+            -t ${{ steps.container_tag.outputs.tag }} \
             --sbom spdx
