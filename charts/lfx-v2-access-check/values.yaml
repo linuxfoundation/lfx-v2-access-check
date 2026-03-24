@@ -1,7 +1,7 @@
 # Copyright The Linux Foundation and each contributor to LFX.
 # SPDX-License-Identifier: MIT
 ---
-replicaCount: 3
+replicaCount: 1
 
 # podAnnotations are additional annotations applied to the pod template.
 # Example:

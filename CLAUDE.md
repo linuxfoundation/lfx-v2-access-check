@@ -1,17 +1,17 @@
-# LFX v2 Access Check Service
+# LFX Access Check Service
 
 ## Quick Overview
 
 - **Purpose**: Bulk access checks for resource-action pairs
-- **Framework**: Go with GOA v3 (API-first design)  
+- **Framework**: Go with Goa v3 (API-first design)
 - **Authentication**: JWT tokens from Heimdall
-- **Message Queue**: NATS for async processing
+- **Message Queue**: NATS for async processing; fga-sync evaluates permissions
 - **Deployment**: Kubernetes with Helm charts
 
 ## Architecture
 
-```
-Client → Traefik → Heimdall → Access Check Service → NATS
+```text
+Client → Traefik → Heimdall → Access Check Service → NATS → fga-sync
 ```
 
 ## Project Structure
@@ -22,11 +22,11 @@ lfx-v2-access-check/
 │   ├── main.go                     # Application bootstrap
 │   └── server.go                   # HTTP server setup
 │
-├── design/                         # GOA API design definitions
+├── design/                         # Goa API design definitions
 │   ├── access-svc.go              # Service design & endpoints
 │   └── types.go                   # Shared type definitions
 │
-├── gen/                           # Generated code (GOA)
+├── gen/                           # Generated code (Goa) — do not edit
 │   ├── access_svc/                # Service interfaces
 │   └── http/                      # HTTP transport layer
 │
@@ -45,12 +45,16 @@ lfx-v2-access-check/
 │   ├── constants/                 # Application constants
 │   └── log/                       # Logging utilities
 │
+└── charts/                        # Helm deployment charts
+```
+
 ## Development Setup
 
 ### Prerequisites
 - Go 1.24.0+
 - Docker
 - NATS server
+- fga-sync (evaluates permissions from NATS messages)
 - Heimdall (JWT provider)
 
 ### Quick Start
@@ -69,9 +73,9 @@ Available development and build targets:
 **Development:**
 ```bash
 make setup-dev        # Install development tools (golangci-lint)
-make setup            # Setup development environment  
+make setup            # Setup development environment
 make deps             # Install Go dependencies
-make apigen           # Generate API code using GOA
+make apigen           # Generate API code using Goa
 make fmt              # Format Go code
 make vet              # Run go vet
 make lint             # Run golangci-lint
@@ -100,11 +104,12 @@ make docker-run       # Run container locally
 
 **Helm/Kubernetes:**
 ```bash
-make helm-install     # Install Helm chart
-make helm-upgrade     # Upgrade Helm release
-make helm-templates   # Generate Helm templates
-make helm-uninstall   # Uninstall Helm release
-make helm-lint        # Lint Helm chart
+make helm-install         # Install Helm chart using values.yaml
+make helm-install-local   # Install Helm chart using values.local.yaml
+make helm-templates       # Render Helm templates
+make helm-templates-local # Render Helm templates using values.local.yaml
+make helm-uninstall       # Uninstall Helm release
+make helm-lint            # Lint Helm chart
 ```
 
 **Utility:**
@@ -115,14 +120,24 @@ make help             # Show all available targets
 ## API
 
 ### Access Check
-```
+
+Version is passed as a query parameter (`?v=1`), not in the request body.
+
+```http
 POST /access-check?v=1
 Authorization: Bearer <JWT_TOKEN>
 Content-Type: application/json
 
 {
-  "version": "1",
-  "requests": ["project:read:proj-123", "committee:write:comm-456"]
+  "requests": ["project:123#read", "committee:456#write"]
+}
+```
+
+Response (results correspond 1:1 with the input `requests` array):
+
+```json
+{
+  "results": ["allow", "deny"]
 }
 ```
 
@@ -130,17 +145,20 @@ Content-Type: application/json
 - `GET /livez` - Liveness probe
 - `GET /readyz` - Readiness probe
 
+### OpenAPI Spec
+Available at `/_access-check/openapi.json`, `openapi.yaml`, `openapi3.json`, `openapi3.yaml`.
+
 ## Deployment
 
 ### Docker
 ```bash
 make docker-build
-docker run -p 8080:8080 -e JWKS_URL=... -e NATS_URL=... lfx-access-check
+docker run -p 8080:8080 ghcr.io/linuxfoundation/lfx-v2-access-check/lfx-access-check:latest
 ```
 
 ### Kubernetes
 ```bash
-helm upgrade --install lfx-v2-access-check ./charts/lfx-v2-access-check
+make helm-install
 ```
 
 ## Service Architecture
@@ -148,7 +166,7 @@ helm upgrade --install lfx-v2-access-check ./charts/lfx-v2-access-check
 ### Core Components
 
 1. **HTTP Server** (`cmd/lfx-access-check/`)
-   - GOA-based REST API server
+   - Goa-based REST API server
    - JWT authentication middleware
    - Request ID tracking
    - Structured logging
@@ -173,15 +191,14 @@ helm upgrade --install lfx-v2-access-check ./charts/lfx-v2-access-check
 
 ### Test Structure
 - **Unit Tests**: Service layer, infrastructure, configuration, middleware
-- **Integration Tests**: API endpoints, NATS integration, JWT authentication
-- **Benchmark Tests**: Performance testing for critical paths
+- **Integration Tests**: API endpoints with mock dependencies — no external services required
 
 ### Running Tests
 ```bash
 # Unit tests
 make test
 
-# Integration tests (requires NATS and mock services)
+# Integration tests (uses mocks — no external services needed)
 go test -v ./test/integration/
 
 # Specific package tests
@@ -191,54 +208,11 @@ go test ./internal/service/
 make test-coverage
 ```
 
-### Integration Tests
-Integration tests are located in `test/integration/` and test the complete API endpoints with real dependencies:
-
-**Test Files:**
+### Integration Test Files
 - `access_check_test.go` - Tests access check endpoint with JWT validation
 - `health_test.go` - Tests health check endpoints (/livez, /readyz)
 - `plaintext_test.go` - Tests plaintext response handling
-- `mocks.go` - Mock services for testing
-
-**Running Integration Tests:**
-```bash
-# Run all integration tests
-go test -v ./test/integration/
-
-# Run specific test
-go test -v ./test/integration/ -run TestAccessCheck
-
-# Run with race detection
-go test -v -race ./test/integration/
-```
-
-**Prerequisites for Integration Tests:**
-- NATS server running (for messaging tests)
-- Mock JWT validation service
-- Test environment variables configured
-
-## Deployment
-
-### Docker Deployment
-```bash
-# Build image
-make docker-build
-
-# Run container
-docker run -p 8080:8080 \
-  -e JWKS_URL=http://heimdall:4457/.well-known/jwks \
-  -e NATS_URL=nats://nats:4222 \
-  linuxfoundation/lfx-access-check:latest
-```
-
-### Kubernetes Deployment
-```bash
-helm upgrade --install lfx-v2-access-check ./charts/lfx-v2-access-check \
-  --set image.tag=v1.0.0 \
-  --set config.jwksUrl=http://heimdall:4457/.well-known/jwks \
-  --set config.natsUrl=nats://nats:4222 \
-  --namespace lfx
-```
+- `mocks.go` - Mock auth and messaging repositories
 
 ## Security
 

@@ -1,0 +1,8 @@
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+---
+# Image configuration
+image:
+  repository: ghcr.io/linuxfoundation/lfx-v2-access-check/lfx-access-check
+  tag: "latest"  # Overrides appVersion from Chart.yaml
+  pullPolicy: Never

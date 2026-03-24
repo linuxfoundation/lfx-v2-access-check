@@ -114,13 +114,13 @@ definitions:
                     example: Eius suscipit itaque velit dolorem.
                 description: Resource-action pairs to check
                 example:
-                    - project:123:read
-                    - committee:456:write
+                    - project:123#read
+                    - committee:456#write
                 minItems: 1
         example:
             requests:
-                - project:123:read
-                - committee:456:write
+                - project:123#read
+                - committee:456#write
         required:
             - requests
     AccessSvcCheckAccessResponseBody:

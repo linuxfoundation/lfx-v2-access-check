@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/service"
+	"github.com/linuxfoundation/lfx-v2-access-check/pkg/constants"
 
 	accesssvc "github.com/linuxfoundation/lfx-v2-access-check/gen/access_svc"
 	accesssvcsvr "github.com/linuxfoundation/lfx-v2-access-check/gen/http/access_svc/server"
@@ -65,7 +66,7 @@ func TestAccessCheckEndpoint(t *testing.T) {
 				"Content-Type":  "application/json",
 			},
 			body: map[string]interface{}{
-				"requests": []string{"project:123:read", "committee:456:write"},
+				"requests": []string{constants.ExampleProjectAction, constants.ExampleCommitteeAction},
 			},
 			expectedStatus: http.StatusOK,
 			expectedError:  false,
@@ -78,7 +79,7 @@ func TestAccessCheckEndpoint(t *testing.T) {
 				"Content-Type": "application/json",
 			},
 			body: map[string]interface{}{
-				"requests": []string{"project:123:read"},
+				"requests": []string{constants.ExampleProjectAction},
 			},
 			expectedStatus: http.StatusBadRequest, // GOA validates required headers first
 			expectedError:  true,
@@ -92,7 +93,7 @@ func TestAccessCheckEndpoint(t *testing.T) {
 				"Content-Type":  "application/json",
 			},
 			body: map[string]interface{}{
-				"requests": []string{"project:123:read"},
+				"requests": []string{constants.ExampleProjectAction},
 			},
 			expectedStatus: http.StatusUnauthorized,
 			expectedError:  true,
@@ -106,7 +107,7 @@ func TestAccessCheckEndpoint(t *testing.T) {
 				"Content-Type":  "application/json",
 			},
 			body: map[string]interface{}{
-				"requests": []string{"project:123:read"},
+				"requests": []string{constants.ExampleProjectAction},
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectedError:  true,

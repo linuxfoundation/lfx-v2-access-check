@@ -123,3 +123,6 @@ yarn-error.log*
 
 # MegaLinter reports
 megalinter-reports/
+
+# Local Helm chart values files
+charts/lfx-v2-access-check/values.local.yaml
