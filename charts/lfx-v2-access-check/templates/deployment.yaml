@@ -6,6 +6,8 @@ kind: Deployment
 metadata:
   name: lfx-v2-access-check
   namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
