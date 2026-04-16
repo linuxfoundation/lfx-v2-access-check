@@ -26,6 +26,13 @@ type CheckAccessResponseBody struct {
 	Results []string `form:"results,omitempty" json:"results,omitempty" xml:"results,omitempty"`
 }
 
+// MyGrantsResponseBody is the type of the "access-svc" service "my-grants"
+// endpoint HTTP response body.
+type MyGrantsResponseBody struct {
+	// Direct access grants as tuple-strings
+	Grants []string `form:"grants,omitempty" json:"grants,omitempty" xml:"grants,omitempty"`
+}
+
 // CheckAccessBadRequestResponseBody is the type of the "access-svc" service
 // "check-access" endpoint HTTP response body for the "BadRequest" error.
 type CheckAccessBadRequestResponseBody struct {
@@ -47,6 +54,42 @@ type CheckAccessBadRequestResponseBody struct {
 // CheckAccessUnauthorizedResponseBody is the type of the "access-svc" service
 // "check-access" endpoint HTTP response body for the "Unauthorized" error.
 type CheckAccessUnauthorizedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// MyGrantsBadRequestResponseBody is the type of the "access-svc" service
+// "my-grants" endpoint HTTP response body for the "BadRequest" error.
+type MyGrantsBadRequestResponseBody struct {
+	// Name is the name of this class of errors.
+	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID *string `form:"id,omitempty" json:"id,omitempty" xml:"id,omitempty"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message *string `form:"message,omitempty" json:"message,omitempty" xml:"message,omitempty"`
+	// Is the error temporary?
+	Temporary *bool `form:"temporary,omitempty" json:"temporary,omitempty" xml:"temporary,omitempty"`
+	// Is the error a timeout?
+	Timeout *bool `form:"timeout,omitempty" json:"timeout,omitempty" xml:"timeout,omitempty"`
+	// Is the error a server-side fault?
+	Fault *bool `form:"fault,omitempty" json:"fault,omitempty" xml:"fault,omitempty"`
+}
+
+// MyGrantsUnauthorizedResponseBody is the type of the "access-svc" service
+// "my-grants" endpoint HTTP response body for the "Unauthorized" error.
+type MyGrantsUnauthorizedResponseBody struct {
 	// Name is the name of this class of errors.
 	Name *string `form:"name,omitempty" json:"name,omitempty" xml:"name,omitempty"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -137,6 +180,48 @@ func NewCheckAccessUnauthorized(body *CheckAccessUnauthorizedResponseBody) *goa.
 	return v
 }
 
+// NewMyGrantsResultOK builds a "access-svc" service "my-grants" endpoint
+// result from a HTTP "OK" response.
+func NewMyGrantsResultOK(body *MyGrantsResponseBody) *accesssvc.MyGrantsResult {
+	v := &accesssvc.MyGrantsResult{}
+	v.Grants = make([]string, len(body.Grants))
+	for i, val := range body.Grants {
+		v.Grants[i] = val
+	}
+
+	return v
+}
+
+// NewMyGrantsBadRequest builds a access-svc service my-grants endpoint
+// BadRequest error.
+func NewMyGrantsBadRequest(body *MyGrantsBadRequestResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
+// NewMyGrantsUnauthorized builds a access-svc service my-grants endpoint
+// Unauthorized error.
+func NewMyGrantsUnauthorized(body *MyGrantsUnauthorizedResponseBody) *goa.ServiceError {
+	v := &goa.ServiceError{
+		Name:      *body.Name,
+		ID:        *body.ID,
+		Message:   *body.Message,
+		Temporary: *body.Temporary,
+		Timeout:   *body.Timeout,
+		Fault:     *body.Fault,
+	}
+
+	return v
+}
+
 // NewReadyzNotReady builds a access-svc service readyz endpoint NotReady error.
 func NewReadyzNotReady(body *ReadyzNotReadyResponseBody) *goa.ServiceError {
 	v := &goa.ServiceError{
@@ -156,6 +241,15 @@ func NewReadyzNotReady(body *ReadyzNotReadyResponseBody) *goa.ServiceError {
 func ValidateCheckAccessResponseBody(body *CheckAccessResponseBody) (err error) {
 	if body.Results == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("results", "body"))
+	}
+	return
+}
+
+// ValidateMyGrantsResponseBody runs the validations defined on
+// My-GrantsResponseBody
+func ValidateMyGrantsResponseBody(body *MyGrantsResponseBody) (err error) {
+	if body.Grants == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("grants", "body"))
 	}
 	return
 }
@@ -187,6 +281,54 @@ func ValidateCheckAccessBadRequestResponseBody(body *CheckAccessBadRequestRespon
 // ValidateCheckAccessUnauthorizedResponseBody runs the validations defined on
 // check-access_Unauthorized_response_body
 func ValidateCheckAccessUnauthorizedResponseBody(body *CheckAccessUnauthorizedResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateMyGrantsBadRequestResponseBody runs the validations defined on
+// my-grants_BadRequest_response_body
+func ValidateMyGrantsBadRequestResponseBody(body *MyGrantsBadRequestResponseBody) (err error) {
+	if body.Name == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
+	}
+	if body.ID == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("id", "body"))
+	}
+	if body.Message == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("message", "body"))
+	}
+	if body.Temporary == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("temporary", "body"))
+	}
+	if body.Timeout == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("timeout", "body"))
+	}
+	if body.Fault == nil {
+		err = goa.MergeErrors(err, goa.MissingFieldError("fault", "body"))
+	}
+	return
+}
+
+// ValidateMyGrantsUnauthorizedResponseBody runs the validations defined on
+// my-grants_Unauthorized_response_body
+func ValidateMyGrantsUnauthorizedResponseBody(body *MyGrantsUnauthorizedResponseBody) (err error) {
 	if body.Name == nil {
 		err = goa.MergeErrors(err, goa.MissingFieldError("name", "body"))
 	}

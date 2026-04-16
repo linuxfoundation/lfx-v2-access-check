@@ -127,6 +127,102 @@ func EncodeCheckAccessError(encoder func(context.Context, http.ResponseWriter) g
 	}
 }
 
+// EncodeMyGrantsResponse returns an encoder for responses returned by the
+// access-svc my-grants endpoint.
+func EncodeMyGrantsResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {
+	return func(ctx context.Context, w http.ResponseWriter, v any) error {
+		res, _ := v.(*accesssvc.MyGrantsResult)
+		enc := encoder(ctx, w)
+		body := NewMyGrantsResponseBody(res)
+		w.WriteHeader(http.StatusOK)
+		return enc.Encode(body)
+	}
+}
+
+// DecodeMyGrantsRequest returns a decoder for requests sent to the access-svc
+// my-grants endpoint.
+func DecodeMyGrantsRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (*accesssvc.MyGrantsPayload, error) {
+	return func(r *http.Request) (*accesssvc.MyGrantsPayload, error) {
+		var payload *accesssvc.MyGrantsPayload
+		var (
+			version     string
+			objectType  string
+			bearerToken string
+			err         error
+		)
+		qp := r.URL.Query()
+		version = qp.Get("v")
+		if version == "" {
+			err = goa.MergeErrors(err, goa.MissingFieldError("version", "query string"))
+		}
+		if !(version == "1") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", version, []any{"1"}))
+		}
+		objectType = qp.Get("object_type")
+		if objectType == "" {
+			err = goa.MergeErrors(err, goa.MissingFieldError("object_type", "query string"))
+		}
+		err = goa.MergeErrors(err, goa.ValidatePattern("object_type", objectType, "^[a-z]+(_[a-z]+)*$"))
+		bearerToken = r.Header.Get("Authorization")
+		if bearerToken == "" {
+			err = goa.MergeErrors(err, goa.MissingFieldError("bearer_token", "header"))
+		}
+		if err != nil {
+			return payload, err
+		}
+		payload = NewMyGrantsPayload(version, objectType, bearerToken)
+		if strings.Contains(payload.BearerToken, " ") {
+			// Remove authorization scheme prefix (e.g. "Bearer")
+			cred := strings.SplitN(payload.BearerToken, " ", 2)[1]
+			payload.BearerToken = cred
+		}
+
+		return payload, nil
+	}
+}
+
+// EncodeMyGrantsError returns an encoder for errors returned by the my-grants
+// access-svc endpoint.
+func EncodeMyGrantsError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder, formatter func(ctx context.Context, err error) goahttp.Statuser) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := goahttp.ErrorEncoder(encoder, formatter)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		var en goa.GoaErrorNamer
+		if !errors.As(v, &en) {
+			return encodeError(ctx, w, v)
+		}
+		switch en.GoaErrorName() {
+		case "BadRequest":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewMyGrantsBadRequestResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusBadRequest)
+			return enc.Encode(body)
+		case "Unauthorized":
+			var res *goa.ServiceError
+			errors.As(v, &res)
+			enc := encoder(ctx, w)
+			var body any
+			if formatter != nil {
+				body = formatter(ctx, res)
+			} else {
+				body = NewMyGrantsUnauthorizedResponseBody(res)
+			}
+			w.Header().Set("goa-error", res.GoaErrorName())
+			w.WriteHeader(http.StatusUnauthorized)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
 // EncodeReadyzResponse returns an encoder for responses returned by the
 // access-svc readyz endpoint.
 func EncodeReadyzResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, any) error {

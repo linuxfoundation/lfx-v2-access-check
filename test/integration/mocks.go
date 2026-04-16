@@ -50,3 +50,27 @@ func (m *MockMessagingRepository) Close() error {
 func (m *MockMessagingRepository) HealthCheck(_ context.Context) error {
 	return nil
 }
+
+// ConfigurableMessagingRepository provides a test implementation of MessagingRepository
+// with a configurable response function.
+type ConfigurableMessagingRepository struct {
+	RequestFunc func(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error)
+}
+
+// Request delegates to the configurable function.
+func (m *ConfigurableMessagingRepository) Request(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error) {
+	if m.RequestFunc != nil {
+		return m.RequestFunc(ctx, subject, data, timeout)
+	}
+	return []byte(`["allow","deny"]`), nil
+}
+
+// Close is a no-op for testing.
+func (m *ConfigurableMessagingRepository) Close() error {
+	return nil
+}
+
+// HealthCheck always returns healthy for mock
+func (m *ConfigurableMessagingRepository) HealthCheck(_ context.Context) error {
+	return nil
+}

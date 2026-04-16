@@ -23,13 +23,13 @@ import (
 //	command (subcommand1|subcommand2|...)
 func UsageCommands() []string {
 	return []string{
-		"access-svc (check-access|readyz|livez)",
+		"access-svc (check-access|my-grants|readyz|livez)",
 	}
 }
 
 // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
-	return os.Args[0] + " " + "access-svc check-access --body '{\n      \"requests\": [\n         \"project:123#read\",\n         \"committee:456#write\"\n      ]\n   }' --version \"1\" --bearer-token \"Nostrum adipisci magni quisquam voluptatem.\"" + "\n" +
+	return os.Args[0] + " " + "access-svc check-access --body '{\n      \"requests\": [\n         \"project:123#read\",\n         \"committee:456#write\"\n      ]\n   }' --version \"1\" --bearer-token \"Sed occaecati officia fugit.\"" + "\n" +
 		""
 }
 
@@ -50,12 +50,18 @@ func ParseEndpoint(
 		accessSvcCheckAccessVersionFlag     = accessSvcCheckAccessFlags.String("version", "REQUIRED", "")
 		accessSvcCheckAccessBearerTokenFlag = accessSvcCheckAccessFlags.String("bearer-token", "REQUIRED", "")
 
+		accessSvcMyGrantsFlags           = flag.NewFlagSet("my-grants", flag.ExitOnError)
+		accessSvcMyGrantsVersionFlag     = accessSvcMyGrantsFlags.String("version", "REQUIRED", "")
+		accessSvcMyGrantsObjectTypeFlag  = accessSvcMyGrantsFlags.String("object-type", "REQUIRED", "")
+		accessSvcMyGrantsBearerTokenFlag = accessSvcMyGrantsFlags.String("bearer-token", "REQUIRED", "")
+
 		accessSvcReadyzFlags = flag.NewFlagSet("readyz", flag.ExitOnError)
 
 		accessSvcLivezFlags = flag.NewFlagSet("livez", flag.ExitOnError)
 	)
 	accessSvcFlags.Usage = accessSvcUsage
 	accessSvcCheckAccessFlags.Usage = accessSvcCheckAccessUsage
+	accessSvcMyGrantsFlags.Usage = accessSvcMyGrantsUsage
 	accessSvcReadyzFlags.Usage = accessSvcReadyzUsage
 	accessSvcLivezFlags.Usage = accessSvcLivezUsage
 
@@ -96,6 +102,9 @@ func ParseEndpoint(
 			case "check-access":
 				epf = accessSvcCheckAccessFlags
 
+			case "my-grants":
+				epf = accessSvcMyGrantsFlags
+
 			case "readyz":
 				epf = accessSvcReadyzFlags
 
@@ -130,6 +139,9 @@ func ParseEndpoint(
 			case "check-access":
 				endpoint = c.CheckAccess()
 				data, err = accesssvcc.BuildCheckAccessPayload(*accessSvcCheckAccessBodyFlag, *accessSvcCheckAccessVersionFlag, *accessSvcCheckAccessBearerTokenFlag)
+			case "my-grants":
+				endpoint = c.MyGrants()
+				data, err = accesssvcc.BuildMyGrantsPayload(*accessSvcMyGrantsVersionFlag, *accessSvcMyGrantsObjectTypeFlag, *accessSvcMyGrantsBearerTokenFlag)
 			case "readyz":
 				endpoint = c.Readyz()
 			case "livez":
@@ -151,6 +163,7 @@ func accessSvcUsage() {
 	fmt.Fprintf(os.Stderr, "Usage:\n    %s [globalflags] access-svc COMMAND [flags]\n\n", os.Args[0])
 	fmt.Fprintln(os.Stderr, "COMMAND:")
 	fmt.Fprintln(os.Stderr, `    check-access: Check access permissions for resource-action pairs`)
+	fmt.Fprintln(os.Stderr, `    my-grants: Get the caller's direct access grants for a given object type`)
 	fmt.Fprintln(os.Stderr, `    readyz: Check if service is ready`)
 	fmt.Fprintln(os.Stderr, `    livez: Check if service is alive`)
 	fmt.Fprintln(os.Stderr)
@@ -176,7 +189,29 @@ func accessSvcCheckAccessUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "access-svc check-access --body '{\n      \"requests\": [\n         \"project:123#read\",\n         \"committee:456#write\"\n      ]\n   }' --version \"1\" --bearer-token \"Nostrum adipisci magni quisquam voluptatem.\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "access-svc check-access --body '{\n      \"requests\": [\n         \"project:123#read\",\n         \"committee:456#write\"\n      ]\n   }' --version \"1\" --bearer-token \"Sed occaecati officia fugit.\"")
+}
+
+func accessSvcMyGrantsUsage() {
+	// Header with flags
+	fmt.Fprintf(os.Stderr, "%s [flags] access-svc my-grants", os.Args[0])
+	fmt.Fprint(os.Stderr, " -version STRING")
+	fmt.Fprint(os.Stderr, " -object-type STRING")
+	fmt.Fprint(os.Stderr, " -bearer-token STRING")
+	fmt.Fprintln(os.Stderr)
+
+	// Description
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, `Get the caller's direct access grants for a given object type`)
+
+	// Flags list
+	fmt.Fprintln(os.Stderr, `    -version STRING: `)
+	fmt.Fprintln(os.Stderr, `    -object-type STRING: `)
+	fmt.Fprintln(os.Stderr, `    -bearer-token STRING: `)
+
+	fmt.Fprintln(os.Stderr)
+	fmt.Fprintln(os.Stderr, "Example:")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "access-svc my-grants --version \"1\" --object-type \"project\" --bearer-token \"Illo et enim.\"")
 }
 
 func accessSvcReadyzUsage() {

@@ -21,6 +21,10 @@ type Client struct {
 	// check-access endpoint.
 	CheckAccessDoer goahttp.Doer
 
+	// MyGrants Doer is the HTTP client used to make requests to the my-grants
+	// endpoint.
+	MyGrantsDoer goahttp.Doer
+
 	// Readyz Doer is the HTTP client used to make requests to the readyz endpoint.
 	ReadyzDoer goahttp.Doer
 
@@ -48,6 +52,7 @@ func NewClient(
 ) *Client {
 	return &Client{
 		CheckAccessDoer:     doer,
+		MyGrantsDoer:        doer,
 		ReadyzDoer:          doer,
 		LivezDoer:           doer,
 		RestoreResponseBody: restoreBody,
@@ -77,6 +82,30 @@ func (c *Client) CheckAccess() goa.Endpoint {
 		resp, err := c.CheckAccessDoer.Do(req)
 		if err != nil {
 			return nil, goahttp.ErrRequestError("access-svc", "check-access", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// MyGrants returns an endpoint that makes HTTP requests to the access-svc
+// service my-grants server.
+func (c *Client) MyGrants() goa.Endpoint {
+	var (
+		encodeRequest  = EncodeMyGrantsRequest(c.encoder)
+		decodeResponse = DecodeMyGrantsResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v any) (any, error) {
+		req, err := c.BuildMyGrantsRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.MyGrantsDoer.Do(req)
+		if err != nil {
+			return nil, goahttp.ErrRequestError("access-svc", "my-grants", err)
 		}
 		return decodeResponse(resp)
 	}

@@ -12,6 +12,11 @@ func CheckAccessAccessSvcPath() string {
 	return "/access-check"
 }
 
+// MyGrantsAccessSvcPath returns the URL path to the access-svc service my-grants HTTP endpoint.
+func MyGrantsAccessSvcPath() string {
+	return "/my-grants"
+}
+
 // ReadyzAccessSvcPath returns the URL path to the access-svc service readyz HTTP endpoint.
 func ReadyzAccessSvcPath() string {
 	return "/readyz"

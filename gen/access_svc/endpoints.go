@@ -17,6 +17,7 @@ import (
 // Endpoints wraps the "access-svc" service endpoints.
 type Endpoints struct {
 	CheckAccess goa.Endpoint
+	MyGrants    goa.Endpoint
 	Readyz      goa.Endpoint
 	Livez       goa.Endpoint
 }
@@ -27,6 +28,7 @@ func NewEndpoints(s Service) *Endpoints {
 	a := s.(Auther)
 	return &Endpoints{
 		CheckAccess: NewCheckAccessEndpoint(s, a.JWTAuth),
+		MyGrants:    NewMyGrantsEndpoint(s, a.JWTAuth),
 		Readyz:      NewReadyzEndpoint(s),
 		Livez:       NewLivezEndpoint(s),
 	}
@@ -35,6 +37,7 @@ func NewEndpoints(s Service) *Endpoints {
 // Use applies the given middleware to all the "access-svc" service endpoints.
 func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.CheckAccess = m(e.CheckAccess)
+	e.MyGrants = m(e.MyGrants)
 	e.Readyz = m(e.Readyz)
 	e.Livez = m(e.Livez)
 }
@@ -55,6 +58,25 @@ func NewCheckAccessEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpo
 			return nil, err
 		}
 		return s.CheckAccess(ctx, p)
+	}
+}
+
+// NewMyGrantsEndpoint returns an endpoint function that calls the method
+// "my-grants" of service "access-svc".
+func NewMyGrantsEndpoint(s Service, authJWTFn security.AuthJWTFunc) goa.Endpoint {
+	return func(ctx context.Context, req any) (any, error) {
+		p := req.(*MyGrantsPayload)
+		var err error
+		sc := security.JWTScheme{
+			Name:           "jwt",
+			Scopes:         []string{},
+			RequiredScopes: []string{},
+		}
+		ctx, err = authJWTFn(ctx, p.BearerToken, &sc)
+		if err != nil {
+			return nil, err
+		}
+		return s.MyGrants(ctx, p)
 	}
 }
 

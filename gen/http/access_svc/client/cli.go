@@ -63,3 +63,37 @@ func BuildCheckAccessPayload(accessSvcCheckAccessBody string, accessSvcCheckAcce
 
 	return v, nil
 }
+
+// BuildMyGrantsPayload builds the payload for the access-svc my-grants
+// endpoint from CLI flags.
+func BuildMyGrantsPayload(accessSvcMyGrantsVersion string, accessSvcMyGrantsObjectType string, accessSvcMyGrantsBearerToken string) (*accesssvc.MyGrantsPayload, error) {
+	var err error
+	var version string
+	{
+		version = accessSvcMyGrantsVersion
+		if !(version == "1") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("version", version, []any{"1"}))
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	var objectType string
+	{
+		objectType = accessSvcMyGrantsObjectType
+		err = goa.MergeErrors(err, goa.ValidatePattern("object_type", objectType, "^[a-z]+(_[a-z]+)*$"))
+		if err != nil {
+			return nil, err
+		}
+	}
+	var bearerToken string
+	{
+		bearerToken = accessSvcMyGrantsBearerToken
+	}
+	v := &accesssvc.MyGrantsPayload{}
+	v.Version = version
+	v.ObjectType = objectType
+	v.BearerToken = bearerToken
+
+	return v, nil
+}

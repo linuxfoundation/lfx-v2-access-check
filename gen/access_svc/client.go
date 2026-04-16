@@ -16,14 +16,16 @@ import (
 // Client is the "access-svc" service client.
 type Client struct {
 	CheckAccessEndpoint goa.Endpoint
+	MyGrantsEndpoint    goa.Endpoint
 	ReadyzEndpoint      goa.Endpoint
 	LivezEndpoint       goa.Endpoint
 }
 
 // NewClient initializes a "access-svc" service client given the endpoints.
-func NewClient(checkAccess, readyz, livez goa.Endpoint) *Client {
+func NewClient(checkAccess, myGrants, readyz, livez goa.Endpoint) *Client {
 	return &Client{
 		CheckAccessEndpoint: checkAccess,
+		MyGrantsEndpoint:    myGrants,
 		ReadyzEndpoint:      readyz,
 		LivezEndpoint:       livez,
 	}
@@ -41,6 +43,20 @@ func (c *Client) CheckAccess(ctx context.Context, p *CheckAccessPayload) (res *C
 		return
 	}
 	return ires.(*CheckAccessResult), nil
+}
+
+// MyGrants calls the "my-grants" endpoint of the "access-svc" service.
+// MyGrants may return the following errors:
+//   - "BadRequest" (type *goa.ServiceError): Bad request
+//   - "Unauthorized" (type *goa.ServiceError): Unauthorized
+//   - error: internal error
+func (c *Client) MyGrants(ctx context.Context, p *MyGrantsPayload) (res *MyGrantsResult, err error) {
+	var ires any
+	ires, err = c.MyGrantsEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(*MyGrantsResult), nil
 }
 
 // Readyz calls the "readyz" endpoint of the "access-svc" service.

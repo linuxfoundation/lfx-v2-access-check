@@ -62,6 +62,61 @@ paths:
                                 $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
+    /my-grants:
+        get:
+            tags:
+                - access-svc
+            summary: my-grants access-svc
+            description: Get the caller's direct access grants for a given object type
+            operationId: access-svc#my-grants
+            parameters:
+                - name: v
+                  in: query
+                  description: API version
+                  allowEmptyValue: true
+                  required: true
+                  schema:
+                    type: string
+                    description: API version
+                    example: "1"
+                    enum:
+                        - "1"
+                  example: "1"
+                - name: object_type
+                  in: query
+                  description: Object type to query grants for
+                  allowEmptyValue: true
+                  required: true
+                  schema:
+                    type: string
+                    description: Object type to query grants for
+                    example: project
+                    pattern: ^[a-z]+(_[a-z]+)*$
+                  example: project
+            responses:
+                "200":
+                    description: OK response.
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/MyGrantsResponseBody'
+                            example:
+                                grants:
+                                    - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#writer@user:auth0|bramwelt
+                "400":
+                    description: 'BadRequest: Bad request'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "401":
+                    description: 'Unauthorized: Unauthorized'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+            security:
+                - jwt_header_Authorization: []
 components:
     schemas:
         AccessErrorResult:
@@ -88,7 +143,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Provident corrupti.
+                        example: Quos fugiat praesentium aut aut.
                     description: Resource-action pairs to check
                     example:
                         - project:123#read
@@ -107,7 +162,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Itaque aut sit dignissimos eos cum.
+                        example: Dolores voluptas occaecati.
                     description: Access check results
                     example:
                         - allow
@@ -124,7 +179,7 @@ components:
                 fault:
                     type: boolean
                     description: Is the error a server-side fault?
-                    example: false
+                    example: true
                 id:
                     type: string
                     description: ID is a unique identifier for this particular occurrence of the problem.
@@ -140,7 +195,7 @@ components:
                 temporary:
                     type: boolean
                     description: Is the error temporary?
-                    example: true
+                    example: false
                 timeout:
                     type: boolean
                     description: Is the error a timeout?
@@ -151,8 +206,8 @@ components:
                 id: 123abc
                 message: parameter 'p' must be an integer
                 name: bad_request
-                temporary: true
-                timeout: false
+                temporary: false
+                timeout: true
             required:
                 - name
                 - id
@@ -160,6 +215,22 @@ components:
                 - temporary
                 - timeout
                 - fault
+        MyGrantsResponseBody:
+            type: object
+            properties:
+                grants:
+                    type: array
+                    items:
+                        type: string
+                        example: Sapiente architecto animi.
+                    description: Direct access grants as tuple-strings
+                    example:
+                        - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#writer@user:auth0|bramwelt
+            example:
+                grants:
+                    - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#writer@user:auth0|bramwelt
+            required:
+                - grants
     securitySchemes:
         jwt_header_Authorization:
             type: http

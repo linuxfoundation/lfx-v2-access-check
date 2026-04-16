@@ -31,4 +31,7 @@ const (
 	// Relation building constants
 	UserRelationPrefix = "@user:"
 	RelationSeparator  = "@"
+
+	// UserTypePrefix is the OpenFGA user type prefix prepended to a principal.
+	UserTypePrefix = "user:"
 )

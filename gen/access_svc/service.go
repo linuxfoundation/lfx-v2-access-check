@@ -18,6 +18,8 @@ import (
 type Service interface {
 	// Check access permissions for resource-action pairs
 	CheckAccess(context.Context, *CheckAccessPayload) (res *CheckAccessResult, err error)
+	// Get the caller's direct access grants for a given object type
+	MyGrants(context.Context, *MyGrantsPayload) (res *MyGrantsResult, err error)
 	// Check if service is ready
 	Readyz(context.Context) (res []byte, err error)
 	// Check if service is alive
@@ -44,7 +46,7 @@ const ServiceName = "access-svc"
 // MethodNames lists the service method names as defined in the design. These
 // are the same values that are set in the endpoint request contexts under the
 // MethodKey key.
-var MethodNames = [3]string{"check-access", "readyz", "livez"}
+var MethodNames = [4]string{"check-access", "my-grants", "readyz", "livez"}
 
 // CheckAccessPayload is the payload type of the access-svc service
 // check-access method.
@@ -62,6 +64,23 @@ type CheckAccessPayload struct {
 type CheckAccessResult struct {
 	// Access check results
 	Results []string
+}
+
+// MyGrantsPayload is the payload type of the access-svc service my-grants
+// method.
+type MyGrantsPayload struct {
+	// JWT token from Heimdall
+	BearerToken string
+	// API version
+	Version string
+	// Object type to query grants for
+	ObjectType string
+}
+
+// MyGrantsResult is the result type of the access-svc service my-grants method.
+type MyGrantsResult struct {
+	// Direct access grants as tuple-strings
+	Grants []string
 }
 
 // MakeBadRequest builds a goa.ServiceError from an error.
