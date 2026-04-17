@@ -7,6 +7,8 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -88,12 +90,90 @@ func (s *AccessService) CheckAccess(ctx context.Context, p *accesssvc.CheckAcces
 	results, err := s.performAccessCheck(ctx, claims.Principal, p.Requests)
 	if err != nil {
 		slog.ErrorContext(ctx, "Access check failed", "error", err, "principal", claims.Principal)
-		return nil, accesssvc.MakeBadRequest(err)
+		switch {
+		case errors.Is(err, constants.ErrPrincipalRequired):
+			return nil, accesssvc.MakeUnauthorized(err)
+		case errors.Is(err, constants.ErrUnexpectedResponse):
+			return nil, accesssvc.MakeInternalServerError(err)
+		default:
+			return nil, accesssvc.MakeServiceUnavailable(err)
+		}
 	}
 
 	slog.InfoContext(ctx, "Access check completed", "principal", claims.Principal, "requests_count", len(p.Requests))
 
 	return &accesssvc.CheckAccessResult{Results: results}, nil
+}
+
+// MyGrants implements the my-grants endpoint, returning the caller's direct OpenFGA tuples.
+func (s *AccessService) MyGrants(ctx context.Context, p *accesssvc.MyGrantsPayload) (*accesssvc.MyGrantsResult, error) {
+	// Extract claims from context.
+	claims, ok := ctx.Value(constants.ClaimsContextKey).(*contracts.HeimdallClaims)
+	if !ok {
+		slog.ErrorContext(ctx, "Failed to get claims from context")
+		return nil, accesssvc.MakeUnauthorized(constants.ErrInvalidAuthContext)
+	}
+
+	// Validate API version.
+	if p.Version != constants.SupportedAPIVersion {
+		slog.WarnContext(ctx, "Unsupported API version", "version", p.Version)
+		return nil, accesssvc.MakeBadRequest(fmt.Errorf("%s: %s", constants.ErrMsgUnsupportedAPIVersion, p.Version))
+	}
+
+	// Validate principal.
+	if claims.Principal == "" {
+		slog.ErrorContext(ctx, "Principal is required for my-grants")
+		return nil, accesssvc.MakeUnauthorized(constants.ErrPrincipalRequired)
+	}
+
+	// Build NATS request payload.
+	reqPayload, err := json.Marshal(readTuplesRequest{
+		User:       constants.UserTypePrefix + claims.Principal,
+		ObjectType: p.ObjectType,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to marshal read tuples request", "error", err)
+		return nil, accesssvc.MakeInternalServerError(fmt.Errorf("failed to build request: %w", err))
+	}
+
+	// Send request to fga-sync via NATS.
+	responseData, err := s.messagingRepo.Request(ctx, constants.ReadTuplesSubject, reqPayload, constants.DefaultNATSTimeout)
+	if err != nil {
+		slog.ErrorContext(ctx, "NATS request failed", "error", err, "subject", constants.ReadTuplesSubject)
+		return nil, accesssvc.MakeServiceUnavailable(fmt.Errorf("%s: %w", constants.ErrMsgNATSRequestFailed, err))
+	}
+
+	// Parse response from fga-sync.
+	var resp readTuplesResponse
+	if err := json.Unmarshal(responseData, &resp); err != nil {
+		slog.ErrorContext(ctx, "Failed to unmarshal read tuples response", "error", err)
+		return nil, accesssvc.MakeInternalServerError(fmt.Errorf("failed to parse response: %w", err))
+	}
+
+	if resp.Error != "" {
+		slog.ErrorContext(ctx, "Read tuples returned error", "error", resp.Error, "principal", claims.Principal)
+		return nil, accesssvc.MakeServiceUnavailable(errors.New("authorization backend unavailable"))
+	}
+
+	grants := resp.Results
+	if grants == nil {
+		grants = []string{}
+	}
+
+	slog.InfoContext(ctx, "My grants completed", "principal", claims.Principal, "object_type", p.ObjectType, "grants_count", len(grants))
+	return &accesssvc.MyGrantsResult{Grants: grants}, nil
+}
+
+// readTuplesRequest is the JSON payload sent to fga-sync over NATS.
+type readTuplesRequest struct {
+	User       string `json:"user"`
+	ObjectType string `json:"object_type"`
+}
+
+// readTuplesResponse is the JSON response received from fga-sync over NATS.
+type readTuplesResponse struct {
+	Results []string `json:"results,omitempty"`
+	Error   string   `json:"error,omitempty"`
 }
 
 // Readyz implements the readiness check endpoint with comprehensive health checks

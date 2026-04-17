@@ -41,14 +41,22 @@ var _ = Service("access-svc", func() {
 		})
 
 		Result(func() {
-			Attribute("results", ArrayOf(String), "Access check results", func() {
-				Example([]string{constants.AccessAllow, constants.AccessDeny})
+			Attribute("results", ArrayOf(String), "Access check results — each entry is 'object#relation@user\\ttrue' or 'object#relation@user\\tfalse'", func() {
+				Example([]string{
+					constants.ExampleProjectAction + "@user:auth0|alice\ttrue",
+					constants.ExampleCommitteeAction + "@user:auth0|alice\tfalse",
+				})
 			})
 			Required("results")
 		})
 
 		Error("BadRequest", ErrorResult, "Bad request")
 		Error("Unauthorized", ErrorResult, "Unauthorized")
+		Error("InternalServerError", ErrorResult, "Internal server error", func() { Fault() })
+		Error("ServiceUnavailable", ErrorResult, "Service unavailable", func() {
+			Temporary()
+			Fault()
+		})
 
 		HTTP(func() {
 			POST("/access-check")
@@ -57,6 +65,53 @@ var _ = Service("access-svc", func() {
 			Response(StatusOK)
 			Response("BadRequest", StatusBadRequest)
 			Response("Unauthorized", StatusUnauthorized)
+			Response("InternalServerError", StatusInternalServerError)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
+		})
+	})
+
+	Method("my-grants", func() {
+		Description("Get the caller's direct access grants for a given object type")
+		Security(JWTAuth)
+
+		Payload(func() {
+			Token("bearer_token", String, "JWT token from Heimdall")
+			Attribute("version", String, "API version", func() {
+				Enum("1")
+				Example("1")
+			})
+			Attribute("object_type", String, "Object type to query grants for", func() {
+				Pattern(`^[a-z]+(_[a-z]+)*$`)
+				Example("project")
+			})
+			Required("bearer_token", "version", "object_type")
+		})
+
+		Result(func() {
+			Attribute("grants", ArrayOf(String), "Direct access grants as tuple-strings", func() {
+				Example([]string{"project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#member@user:auth0|alice"})
+			})
+			Required("grants")
+		})
+
+		Error("BadRequest", ErrorResult, "Bad request")
+		Error("Unauthorized", ErrorResult, "Unauthorized")
+		Error("InternalServerError", ErrorResult, "Internal server error", func() { Fault() })
+		Error("ServiceUnavailable", ErrorResult, "Service unavailable", func() {
+			Temporary()
+			Fault()
+		})
+
+		HTTP(func() {
+			GET("/my-grants")
+			Param("version:v")
+			Param("object_type")
+			Header("bearer_token:Authorization")
+			Response(StatusOK)
+			Response("BadRequest", StatusBadRequest)
+			Response("Unauthorized", StatusUnauthorized)
+			Response("InternalServerError", StatusInternalServerError)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
 		})
 	})
 

@@ -67,6 +67,8 @@ func EncodeCheckAccessRequest(encoder func(*http.Request) goahttp.Encoder) func(
 // DecodeCheckAccessResponse may return the following errors:
 //   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
 //   - "Unauthorized" (type *goa.ServiceError): http.StatusUnauthorized
+//   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
+//   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
 //   - error: internal error
 func DecodeCheckAccessResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
@@ -126,9 +128,178 @@ func DecodeCheckAccessResponse(decoder func(*http.Response) goahttp.Decoder, res
 				return nil, goahttp.ErrValidationError("access-svc", "check-access", err)
 			}
 			return nil, NewCheckAccessUnauthorized(&body)
+		case http.StatusInternalServerError:
+			var (
+				body CheckAccessInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("access-svc", "check-access", err)
+			}
+			err = ValidateCheckAccessInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("access-svc", "check-access", err)
+			}
+			return nil, NewCheckAccessInternalServerError(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body CheckAccessServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("access-svc", "check-access", err)
+			}
+			err = ValidateCheckAccessServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("access-svc", "check-access", err)
+			}
+			return nil, NewCheckAccessServiceUnavailable(&body)
 		default:
 			body, _ := io.ReadAll(resp.Body)
 			return nil, goahttp.ErrInvalidResponse("access-svc", "check-access", resp.StatusCode, string(body))
+		}
+	}
+}
+
+// BuildMyGrantsRequest instantiates a HTTP request object with method and path
+// set to call the "access-svc" service "my-grants" endpoint
+func (c *Client) BuildMyGrantsRequest(ctx context.Context, v any) (*http.Request, error) {
+	u := &url.URL{Scheme: c.scheme, Host: c.host, Path: MyGrantsAccessSvcPath()}
+	req, err := http.NewRequest("GET", u.String(), nil)
+	if err != nil {
+		return nil, goahttp.ErrInvalidURL("access-svc", "my-grants", u.String(), err)
+	}
+	if ctx != nil {
+		req = req.WithContext(ctx)
+	}
+
+	return req, nil
+}
+
+// EncodeMyGrantsRequest returns an encoder for requests sent to the access-svc
+// my-grants server.
+func EncodeMyGrantsRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, any) error {
+	return func(req *http.Request, v any) error {
+		p, ok := v.(*accesssvc.MyGrantsPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("access-svc", "my-grants", "*accesssvc.MyGrantsPayload", v)
+		}
+		{
+			head := p.BearerToken
+			if !strings.Contains(head, " ") {
+				req.Header.Set("Authorization", "Bearer "+head)
+			} else {
+				req.Header.Set("Authorization", head)
+			}
+		}
+		values := req.URL.Query()
+		values.Add("v", p.Version)
+		values.Add("object_type", p.ObjectType)
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
+// DecodeMyGrantsResponse returns a decoder for responses returned by the
+// access-svc my-grants endpoint. restoreBody controls whether the response
+// body should be restored after having been read.
+// DecodeMyGrantsResponse may return the following errors:
+//   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
+//   - "Unauthorized" (type *goa.ServiceError): http.StatusUnauthorized
+//   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
+//   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
+//   - error: internal error
+func DecodeMyGrantsResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
+	return func(resp *http.Response) (any, error) {
+		if restoreBody {
+			b, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, err
+			}
+			resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			defer func() {
+				resp.Body = io.NopCloser(bytes.NewBuffer(b))
+			}()
+		} else {
+			defer resp.Body.Close()
+		}
+		switch resp.StatusCode {
+		case http.StatusOK:
+			var (
+				body MyGrantsResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("access-svc", "my-grants", err)
+			}
+			err = ValidateMyGrantsResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("access-svc", "my-grants", err)
+			}
+			res := NewMyGrantsResultOK(&body)
+			return res, nil
+		case http.StatusBadRequest:
+			var (
+				body MyGrantsBadRequestResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("access-svc", "my-grants", err)
+			}
+			err = ValidateMyGrantsBadRequestResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("access-svc", "my-grants", err)
+			}
+			return nil, NewMyGrantsBadRequest(&body)
+		case http.StatusUnauthorized:
+			var (
+				body MyGrantsUnauthorizedResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("access-svc", "my-grants", err)
+			}
+			err = ValidateMyGrantsUnauthorizedResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("access-svc", "my-grants", err)
+			}
+			return nil, NewMyGrantsUnauthorized(&body)
+		case http.StatusInternalServerError:
+			var (
+				body MyGrantsInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("access-svc", "my-grants", err)
+			}
+			err = ValidateMyGrantsInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("access-svc", "my-grants", err)
+			}
+			return nil, NewMyGrantsInternalServerError(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body MyGrantsServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("access-svc", "my-grants", err)
+			}
+			err = ValidateMyGrantsServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("access-svc", "my-grants", err)
+			}
+			return nil, NewMyGrantsServiceUnavailable(&body)
+		default:
+			body, _ := io.ReadAll(resp.Body)
+			return nil, goahttp.ErrInvalidResponse("access-svc", "my-grants", resp.StatusCode, string(body))
 		}
 	}
 }

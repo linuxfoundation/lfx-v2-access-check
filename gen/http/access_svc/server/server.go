@@ -21,6 +21,7 @@ import (
 type Server struct {
 	Mounts              []*MountPoint
 	CheckAccess         http.Handler
+	MyGrants            http.Handler
 	Readyz              http.Handler
 	Livez               http.Handler
 	GenHTTPOpenapiJSON  http.Handler
@@ -77,6 +78,7 @@ func New(
 	return &Server{
 		Mounts: []*MountPoint{
 			{"CheckAccess", "POST", "/access-check"},
+			{"MyGrants", "GET", "/my-grants"},
 			{"Readyz", "GET", "/readyz"},
 			{"Livez", "GET", "/livez"},
 			{"Serve gen/http/openapi.json", "GET", "/_access-check/openapi.json"},
@@ -85,6 +87,7 @@ func New(
 			{"Serve gen/http/openapi3.yaml", "GET", "/_access-check/openapi3.yaml"},
 		},
 		CheckAccess:         NewCheckAccessHandler(e.CheckAccess, mux, decoder, encoder, errhandler, formatter),
+		MyGrants:            NewMyGrantsHandler(e.MyGrants, mux, decoder, encoder, errhandler, formatter),
 		Readyz:              NewReadyzHandler(e.Readyz, mux, decoder, encoder, errhandler, formatter),
 		Livez:               NewLivezHandler(e.Livez, mux, decoder, encoder, errhandler, formatter),
 		GenHTTPOpenapiJSON:  http.FileServer(fileSystemGenHTTPOpenapiJSON),
@@ -100,6 +103,7 @@ func (s *Server) Service() string { return "access-svc" }
 // Use wraps the server handlers with the given middleware.
 func (s *Server) Use(m func(http.Handler) http.Handler) {
 	s.CheckAccess = m(s.CheckAccess)
+	s.MyGrants = m(s.MyGrants)
 	s.Readyz = m(s.Readyz)
 	s.Livez = m(s.Livez)
 }
@@ -110,6 +114,7 @@ func (s *Server) MethodNames() []string { return accesssvc.MethodNames[:] }
 // Mount configures the mux to serve the access-svc endpoints.
 func Mount(mux goahttp.Muxer, h *Server) {
 	MountCheckAccessHandler(mux, h.CheckAccess)
+	MountMyGrantsHandler(mux, h.MyGrants)
 	MountReadyzHandler(mux, h.Readyz)
 	MountLivezHandler(mux, h.Livez)
 	MountGenHTTPOpenapiJSON(mux, http.StripPrefix("/_access-check", h.GenHTTPOpenapiJSON))
@@ -153,6 +158,59 @@ func NewCheckAccessHandler(
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
 		ctx = context.WithValue(ctx, goa.MethodKey, "check-access")
+		ctx = context.WithValue(ctx, goa.ServiceKey, "access-svc")
+		payload, err := decodeRequest(r)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		res, err := endpoint(ctx, payload)
+		if err != nil {
+			if err := encodeError(ctx, w, err); err != nil && errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+			return
+		}
+		if err := encodeResponse(ctx, w, res); err != nil {
+			if errhandler != nil {
+				errhandler(ctx, w, err)
+			}
+		}
+	})
+}
+
+// MountMyGrantsHandler configures the mux to serve the "access-svc" service
+// "my-grants" endpoint.
+func MountMyGrantsHandler(mux goahttp.Muxer, h http.Handler) {
+	f, ok := h.(http.HandlerFunc)
+	if !ok {
+		f = func(w http.ResponseWriter, r *http.Request) {
+			h.ServeHTTP(w, r)
+		}
+	}
+	mux.Handle("GET", "/my-grants", f)
+}
+
+// NewMyGrantsHandler creates a HTTP handler which loads the HTTP request and
+// calls the "access-svc" service "my-grants" endpoint.
+func NewMyGrantsHandler(
+	endpoint goa.Endpoint,
+	mux goahttp.Muxer,
+	decoder func(*http.Request) goahttp.Decoder,
+	encoder func(context.Context, http.ResponseWriter) goahttp.Encoder,
+	errhandler func(context.Context, http.ResponseWriter, error),
+	formatter func(ctx context.Context, err error) goahttp.Statuser,
+) http.Handler {
+	var (
+		decodeRequest  = DecodeMyGrantsRequest(mux, decoder)
+		encodeResponse = EncodeMyGrantsResponse(encoder)
+		encodeError    = EncodeMyGrantsError(encoder, formatter)
+	)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
+		ctx = context.WithValue(ctx, goa.MethodKey, "my-grants")
 		ctx = context.WithValue(ctx, goa.ServiceKey, "access-svc")
 		payload, err := decodeRequest(r)
 		if err != nil {

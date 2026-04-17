@@ -6,6 +6,15 @@ package constants
 
 import "time"
 
+// NATS subject constants
+const (
+	// AccessCheckSubject is the NATS subject for bulk access check requests.
+	AccessCheckSubject = "lfx.access_check.request"
+
+	// ReadTuplesSubject is the NATS subject for reading a user's direct tuples by object type.
+	ReadTuplesSubject = "lfx.access_check.read_tuples"
+)
+
 // Messaging constants
 const (
 	// DefaultNATSTimeout is the default timeout for NATS operations

@@ -129,15 +129,15 @@ Authorization: Bearer <JWT_TOKEN>
 Content-Type: application/json
 
 {
-  "requests": ["project:123#read", "committee:456#write"]
+  "requests": ["project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor", "committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer"]
 }
 ```
 
-Response (results correspond 1:1 with the input `requests` array):
+Response (results are unordered — match on `object#relation@user` prefix):
 
 ```json
 {
-  "results": ["allow", "deny"]
+  "results": ["project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue", "committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer@user:auth0|alice\tfalse"]
 }
 ```
 
