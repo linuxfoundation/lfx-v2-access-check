@@ -67,6 +67,8 @@ func EncodeCheckAccessRequest(encoder func(*http.Request) goahttp.Encoder) func(
 // DecodeCheckAccessResponse may return the following errors:
 //   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
 //   - "Unauthorized" (type *goa.ServiceError): http.StatusUnauthorized
+//   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
+//   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
 //   - error: internal error
 func DecodeCheckAccessResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
@@ -126,6 +128,34 @@ func DecodeCheckAccessResponse(decoder func(*http.Response) goahttp.Decoder, res
 				return nil, goahttp.ErrValidationError("access-svc", "check-access", err)
 			}
 			return nil, NewCheckAccessUnauthorized(&body)
+		case http.StatusInternalServerError:
+			var (
+				body CheckAccessInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("access-svc", "check-access", err)
+			}
+			err = ValidateCheckAccessInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("access-svc", "check-access", err)
+			}
+			return nil, NewCheckAccessInternalServerError(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body CheckAccessServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("access-svc", "check-access", err)
+			}
+			err = ValidateCheckAccessServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("access-svc", "check-access", err)
+			}
+			return nil, NewCheckAccessServiceUnavailable(&body)
 		default:
 			body, _ := io.ReadAll(resp.Body)
 			return nil, goahttp.ErrInvalidResponse("access-svc", "check-access", resp.StatusCode, string(body))
@@ -178,6 +208,8 @@ func EncodeMyGrantsRequest(encoder func(*http.Request) goahttp.Encoder) func(*ht
 // DecodeMyGrantsResponse may return the following errors:
 //   - "BadRequest" (type *goa.ServiceError): http.StatusBadRequest
 //   - "Unauthorized" (type *goa.ServiceError): http.StatusUnauthorized
+//   - "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
+//   - "ServiceUnavailable" (type *goa.ServiceError): http.StatusServiceUnavailable
 //   - error: internal error
 func DecodeMyGrantsResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (any, error) {
 	return func(resp *http.Response) (any, error) {
@@ -237,6 +269,34 @@ func DecodeMyGrantsResponse(decoder func(*http.Response) goahttp.Decoder, restor
 				return nil, goahttp.ErrValidationError("access-svc", "my-grants", err)
 			}
 			return nil, NewMyGrantsUnauthorized(&body)
+		case http.StatusInternalServerError:
+			var (
+				body MyGrantsInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("access-svc", "my-grants", err)
+			}
+			err = ValidateMyGrantsInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("access-svc", "my-grants", err)
+			}
+			return nil, NewMyGrantsInternalServerError(&body)
+		case http.StatusServiceUnavailable:
+			var (
+				body MyGrantsServiceUnavailableResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("access-svc", "my-grants", err)
+			}
+			err = ValidateMyGrantsServiceUnavailableResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("access-svc", "my-grants", err)
+			}
+			return nil, NewMyGrantsServiceUnavailable(&body)
 		default:
 			body, _ := io.ReadAll(resp.Body)
 			return nil, goahttp.ErrInvalidResponse("access-svc", "my-grants", resp.StatusCode, string(body))

@@ -93,6 +93,16 @@ func MakeUnauthorized(err error) *goa.ServiceError {
 	return goa.NewServiceError(err, "Unauthorized", false, false, false)
 }
 
+// MakeInternalServerError builds a goa.ServiceError from an error.
+func MakeInternalServerError(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "InternalServerError", false, false, true)
+}
+
+// MakeServiceUnavailable builds a goa.ServiceError from an error.
+func MakeServiceUnavailable(err error) *goa.ServiceError {
+	return goa.NewServiceError(err, "ServiceUnavailable", false, true, false)
+}
+
 // MakeNotReady builds a goa.ServiceError from an error.
 func MakeNotReady(err error) *goa.ServiceError {
 	return goa.NewServiceError(err, "NotReady", false, true, true)

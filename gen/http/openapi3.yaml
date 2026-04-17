@@ -60,6 +60,18 @@ paths:
                         application/vnd.goa.error:
                             schema:
                                 $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
     /my-grants:
@@ -115,6 +127,18 @@ paths:
                         application/vnd.goa.error:
                             schema:
                                 $ref: '#/components/schemas/Error'
+                "500":
+                    description: 'InternalServerError: Internal server error'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
+                "503":
+                    description: 'ServiceUnavailable: Service unavailable'
+                    content:
+                        application/vnd.goa.error:
+                            schema:
+                                $ref: '#/components/schemas/Error'
             security:
                 - jwt_header_Authorization: []
 components:
@@ -143,7 +167,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Quos fugiat praesentium aut aut.
+                        example: Architecto quo iusto error veniam architecto.
                     description: Resource-action pairs to check
                     example:
                         - project:123#read
@@ -162,7 +186,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Dolores voluptas occaecati.
+                        example: Suscipit consequatur repellendus.
                     description: Access check results
                     example:
                         - allow
@@ -222,7 +246,7 @@ components:
                     type: array
                     items:
                         type: string
-                        example: Sapiente architecto animi.
+                        example: Iure accusamus est.
                     description: Direct access grants as tuple-strings
                     example:
                         - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#writer@user:auth0|bramwelt

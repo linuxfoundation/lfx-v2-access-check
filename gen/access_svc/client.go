@@ -35,6 +35,8 @@ func NewClient(checkAccess, myGrants, readyz, livez goa.Endpoint) *Client {
 // CheckAccess may return the following errors:
 //   - "BadRequest" (type *goa.ServiceError): Bad request
 //   - "Unauthorized" (type *goa.ServiceError): Unauthorized
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
 func (c *Client) CheckAccess(ctx context.Context, p *CheckAccessPayload) (res *CheckAccessResult, err error) {
 	var ires any
@@ -49,6 +51,8 @@ func (c *Client) CheckAccess(ctx context.Context, p *CheckAccessPayload) (res *C
 // MyGrants may return the following errors:
 //   - "BadRequest" (type *goa.ServiceError): Bad request
 //   - "Unauthorized" (type *goa.ServiceError): Unauthorized
+//   - "InternalServerError" (type *goa.ServiceError): Internal server error
+//   - "ServiceUnavailable" (type *goa.ServiceError): Service unavailable
 //   - error: internal error
 func (c *Client) MyGrants(ctx context.Context, p *MyGrantsPayload) (res *MyGrantsResult, err error) {
 	var ires any

@@ -135,3 +135,22 @@ func TestMyGrants_MissingClaims(t *testing.T) {
 		t.Fatal("expected unauthorized error, got nil")
 	}
 }
+
+func TestMyGrants_MalformedResponse(t *testing.T) {
+	messagingRepo := &mockMessagingRepository{
+		requestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
+			return []byte(`not valid json`), nil
+		},
+	}
+	svc := NewAccessService(&mockAuthRepository{}, messagingRepo)
+
+	_, err := svc.MyGrants(contextWithClaims("auth0|user"), &accesssvc.MyGrantsPayload{
+		BearerToken: "tok",
+		Version:     "1",
+		ObjectType:  "project",
+	})
+
+	if err == nil {
+		t.Fatal("expected error for malformed response, got nil")
+	}
+}

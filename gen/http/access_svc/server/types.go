@@ -69,6 +69,44 @@ type CheckAccessUnauthorizedResponseBody struct {
 	Fault bool `form:"fault" json:"fault" xml:"fault"`
 }
 
+// CheckAccessInternalServerErrorResponseBody is the type of the "access-svc"
+// service "check-access" endpoint HTTP response body for the
+// "InternalServerError" error.
+type CheckAccessInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// CheckAccessServiceUnavailableResponseBody is the type of the "access-svc"
+// service "check-access" endpoint HTTP response body for the
+// "ServiceUnavailable" error.
+type CheckAccessServiceUnavailableResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
 // MyGrantsBadRequestResponseBody is the type of the "access-svc" service
 // "my-grants" endpoint HTTP response body for the "BadRequest" error.
 type MyGrantsBadRequestResponseBody struct {
@@ -90,6 +128,44 @@ type MyGrantsBadRequestResponseBody struct {
 // MyGrantsUnauthorizedResponseBody is the type of the "access-svc" service
 // "my-grants" endpoint HTTP response body for the "Unauthorized" error.
 type MyGrantsUnauthorizedResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// MyGrantsInternalServerErrorResponseBody is the type of the "access-svc"
+// service "my-grants" endpoint HTTP response body for the
+// "InternalServerError" error.
+type MyGrantsInternalServerErrorResponseBody struct {
+	// Name is the name of this class of errors.
+	Name string `form:"name" json:"name" xml:"name"`
+	// ID is a unique identifier for this particular occurrence of the problem.
+	ID string `form:"id" json:"id" xml:"id"`
+	// Message is a human-readable explanation specific to this occurrence of the
+	// problem.
+	Message string `form:"message" json:"message" xml:"message"`
+	// Is the error temporary?
+	Temporary bool `form:"temporary" json:"temporary" xml:"temporary"`
+	// Is the error a timeout?
+	Timeout bool `form:"timeout" json:"timeout" xml:"timeout"`
+	// Is the error a server-side fault?
+	Fault bool `form:"fault" json:"fault" xml:"fault"`
+}
+
+// MyGrantsServiceUnavailableResponseBody is the type of the "access-svc"
+// service "my-grants" endpoint HTTP response body for the "ServiceUnavailable"
+// error.
+type MyGrantsServiceUnavailableResponseBody struct {
 	// Name is the name of this class of errors.
 	Name string `form:"name" json:"name" xml:"name"`
 	// ID is a unique identifier for this particular occurrence of the problem.
@@ -181,6 +257,34 @@ func NewCheckAccessUnauthorizedResponseBody(res *goa.ServiceError) *CheckAccessU
 	return body
 }
 
+// NewCheckAccessInternalServerErrorResponseBody builds the HTTP response body
+// from the result of the "check-access" endpoint of the "access-svc" service.
+func NewCheckAccessInternalServerErrorResponseBody(res *goa.ServiceError) *CheckAccessInternalServerErrorResponseBody {
+	body := &CheckAccessInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewCheckAccessServiceUnavailableResponseBody builds the HTTP response body
+// from the result of the "check-access" endpoint of the "access-svc" service.
+func NewCheckAccessServiceUnavailableResponseBody(res *goa.ServiceError) *CheckAccessServiceUnavailableResponseBody {
+	body := &CheckAccessServiceUnavailableResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
 // NewMyGrantsBadRequestResponseBody builds the HTTP response body from the
 // result of the "my-grants" endpoint of the "access-svc" service.
 func NewMyGrantsBadRequestResponseBody(res *goa.ServiceError) *MyGrantsBadRequestResponseBody {
@@ -199,6 +303,34 @@ func NewMyGrantsBadRequestResponseBody(res *goa.ServiceError) *MyGrantsBadReques
 // result of the "my-grants" endpoint of the "access-svc" service.
 func NewMyGrantsUnauthorizedResponseBody(res *goa.ServiceError) *MyGrantsUnauthorizedResponseBody {
 	body := &MyGrantsUnauthorizedResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewMyGrantsInternalServerErrorResponseBody builds the HTTP response body
+// from the result of the "my-grants" endpoint of the "access-svc" service.
+func NewMyGrantsInternalServerErrorResponseBody(res *goa.ServiceError) *MyGrantsInternalServerErrorResponseBody {
+	body := &MyGrantsInternalServerErrorResponseBody{
+		Name:      res.Name,
+		ID:        res.ID,
+		Message:   res.Message,
+		Temporary: res.Temporary,
+		Timeout:   res.Timeout,
+		Fault:     res.Fault,
+	}
+	return body
+}
+
+// NewMyGrantsServiceUnavailableResponseBody builds the HTTP response body from
+// the result of the "my-grants" endpoint of the "access-svc" service.
+func NewMyGrantsServiceUnavailableResponseBody(res *goa.ServiceError) *MyGrantsServiceUnavailableResponseBody {
+	body := &MyGrantsServiceUnavailableResponseBody{
 		Name:      res.Name,
 		ID:        res.ID,
 		Message:   res.Message,

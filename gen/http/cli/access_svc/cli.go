@@ -211,7 +211,7 @@ func accessSvcMyGrantsUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "access-svc my-grants --version \"1\" --object-type \"project\" --bearer-token \"Illo et enim.\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "access-svc my-grants --version \"1\" --object-type \"project\" --bearer-token \"Et quibusdam atque laudantium inventore quod atque.\"")
 }
 
 func accessSvcReadyzUsage() {

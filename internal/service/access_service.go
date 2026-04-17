@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -89,7 +90,7 @@ func (s *AccessService) CheckAccess(ctx context.Context, p *accesssvc.CheckAcces
 	results, err := s.performAccessCheck(ctx, claims.Principal, p.Requests)
 	if err != nil {
 		slog.ErrorContext(ctx, "Access check failed", "error", err, "principal", claims.Principal)
-		return nil, accesssvc.MakeBadRequest(err)
+		return nil, accesssvc.MakeServiceUnavailable(err)
 	}
 
 	slog.InfoContext(ctx, "Access check completed", "principal", claims.Principal, "requests_count", len(p.Requests))
@@ -112,6 +113,12 @@ func (s *AccessService) MyGrants(ctx context.Context, p *accesssvc.MyGrantsPaylo
 		return nil, accesssvc.MakeBadRequest(fmt.Errorf("%s: %s", constants.ErrMsgUnsupportedAPIVersion, p.Version))
 	}
 
+	// Validate principal.
+	if claims.Principal == "" {
+		slog.ErrorContext(ctx, "Principal is required for my-grants")
+		return nil, accesssvc.MakeUnauthorized(constants.ErrPrincipalRequired)
+	}
+
 	// Build NATS request payload.
 	reqPayload, err := json.Marshal(readTuplesRequest{
 		User:       constants.UserTypePrefix + claims.Principal,
@@ -126,19 +133,19 @@ func (s *AccessService) MyGrants(ctx context.Context, p *accesssvc.MyGrantsPaylo
 	responseData, err := s.messagingRepo.Request(ctx, constants.ReadTuplesSubject, reqPayload, constants.DefaultNATSTimeout)
 	if err != nil {
 		slog.ErrorContext(ctx, "NATS request failed", "error", err, "subject", constants.ReadTuplesSubject)
-		return nil, accesssvc.MakeBadRequest(fmt.Errorf("%s: %w", constants.ErrMsgNATSRequestFailed, err))
+		return nil, accesssvc.MakeServiceUnavailable(fmt.Errorf("%s: %w", constants.ErrMsgNATSRequestFailed, err))
 	}
 
 	// Parse response from fga-sync.
 	var resp readTuplesResponse
 	if err := json.Unmarshal(responseData, &resp); err != nil {
 		slog.ErrorContext(ctx, "Failed to unmarshal read tuples response", "error", err)
-		return nil, accesssvc.MakeBadRequest(fmt.Errorf("failed to parse response: %w", err))
+		return nil, accesssvc.MakeInternalServerError(fmt.Errorf("failed to parse response: %w", err))
 	}
 
 	if resp.Error != "" {
-		slog.WarnContext(ctx, "Read tuples returned error", "error", resp.Error, "principal", claims.Principal)
-		return nil, accesssvc.MakeBadRequest(fmt.Errorf("%s", resp.Error))
+		slog.ErrorContext(ctx, "Read tuples returned error", "error", resp.Error, "principal", claims.Principal)
+		return nil, accesssvc.MakeInternalServerError(errors.New(resp.Error))
 	}
 
 	grants := resp.Results

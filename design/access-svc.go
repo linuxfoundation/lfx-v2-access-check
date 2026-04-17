@@ -49,6 +49,8 @@ var _ = Service("access-svc", func() {
 
 		Error("BadRequest", ErrorResult, "Bad request")
 		Error("Unauthorized", ErrorResult, "Unauthorized")
+		Error("InternalServerError", ErrorResult, "Internal server error", func() { Fault() })
+		Error("ServiceUnavailable", ErrorResult, "Service unavailable", func() { Temporary() })
 
 		HTTP(func() {
 			POST("/access-check")
@@ -57,6 +59,8 @@ var _ = Service("access-svc", func() {
 			Response(StatusOK)
 			Response("BadRequest", StatusBadRequest)
 			Response("Unauthorized", StatusUnauthorized)
+			Response("InternalServerError", StatusInternalServerError)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
 		})
 	})
 
@@ -86,6 +90,8 @@ var _ = Service("access-svc", func() {
 
 		Error("BadRequest", ErrorResult, "Bad request")
 		Error("Unauthorized", ErrorResult, "Unauthorized")
+		Error("InternalServerError", ErrorResult, "Internal server error", func() { Fault() })
+		Error("ServiceUnavailable", ErrorResult, "Service unavailable", func() { Temporary() })
 
 		HTTP(func() {
 			GET("/my-grants")
@@ -95,6 +101,8 @@ var _ = Service("access-svc", func() {
 			Response(StatusOK)
 			Response("BadRequest", StatusBadRequest)
 			Response("Unauthorized", StatusUnauthorized)
+			Response("InternalServerError", StatusInternalServerError)
+			Response("ServiceUnavailable", StatusServiceUnavailable)
 		})
 	})
 

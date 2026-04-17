@@ -5,6 +5,7 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -192,10 +193,10 @@ func TestMyGrantsEndpoint(t *testing.T) {
 			}
 
 			if tt.validateBody != nil && resp.StatusCode == http.StatusOK {
-				var body []byte
-				buf := make([]byte, 4096)
-				n, _ := resp.Body.Read(buf)
-				body = buf[:n]
+				body, err := io.ReadAll(resp.Body)
+				if err != nil {
+					t.Fatalf("failed to read response body: %v", err)
+				}
 				tt.validateBody(t, body)
 			}
 		})

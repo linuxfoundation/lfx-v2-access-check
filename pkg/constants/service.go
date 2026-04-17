@@ -16,9 +16,6 @@ const (
 	// but we can add an alias here for clarity in service contexts
 	ServiceRequestIDKey ContextKey = RequestIDHeader
 
-	// NATS subjects for messaging
-	AccessCheckSubject = "lfx.access_check.request"
-
 	// API version constants
 	SupportedAPIVersion = "1"
 
