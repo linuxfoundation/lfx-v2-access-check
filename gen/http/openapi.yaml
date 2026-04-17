@@ -218,13 +218,13 @@ definitions:
                     example: Voluptas occaecati.
                 description: Resource-action pairs to check
                 example:
-                    - project:123#read
-                    - committee:456#write
+                    - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor
+                    - committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer
                 minItems: 1
         example:
             requests:
-                - project:123#read
-                - committee:456#write
+                - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor
+                - committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer
         required:
             - requests
     AccessSvcCheckAccessResponseBody:
@@ -236,14 +236,14 @@ definitions:
                 items:
                     type: string
                     example: Sit dignissimos eos cum.
-                description: Access check results
+                description: Access check results — each entry is 'object#relation@user\ttrue' or 'object#relation@user\tfalse'
                 example:
-                    - allow
-                    - deny
+                    - "project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue"
+                    - "committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer@user:auth0|alice\tfalse"
         example:
             results:
-                - allow
-                - deny
+                - "project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue"
+                - "committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer@user:auth0|alice\tfalse"
         required:
             - results
     AccessSvcCheckAccessServiceUnavailableResponseBody:
@@ -429,10 +429,10 @@ definitions:
                     example: Qui tempore illo ut mollitia ea sapiente.
                 description: Direct access grants as tuple-strings
                 example:
-                    - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#writer@user:auth0|bramwelt
+                    - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#member@user:auth0|alice
         example:
             grants:
-                - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#writer@user:auth0|bramwelt
+                - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#member@user:auth0|alice
         required:
             - grants
     AccessSvcMyGrantsServiceUnavailableResponseBody:

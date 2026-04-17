@@ -22,7 +22,8 @@ type CheckAccessRequestBody struct {
 // CheckAccessResponseBody is the type of the "access-svc" service
 // "check-access" endpoint HTTP response body.
 type CheckAccessResponseBody struct {
-	// Access check results
+	// Access check results — each entry is 'object#relation@user\ttrue' or
+	// 'object#relation@user\tfalse'
 	Results []string `form:"results" json:"results" xml:"results"`
 }
 

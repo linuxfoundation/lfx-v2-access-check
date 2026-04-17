@@ -66,13 +66,13 @@ sequenceDiagram
 
     NATS->>FGASync: Deliver check request
     FGASync->>FGASync: Evaluate permissions in OpenFGA
-    FGASync-->>NATS: Return allow/deny results
+    FGASync-->>NATS: Return tuple-string results (object#relation@user\ttrue/false)
 
     NATS-->>AccessCheck: Authorization results
     AccessCheck-->>Traefik: JSON response with decisions
     Traefik-->>Client: Access check results
 
-    Note over AccessCheck,FGASync: Results correspond 1:1 with<br/>the input requests array
+    Note over AccessCheck,FGASync: Results are unordered tuples;<br/>match on object#relation@user in each result
 ```
 
 ## Quick Start
@@ -155,24 +155,24 @@ Content-Type: application/json
 ```json
 {
   "requests": [
-    "project:123#read",
-    "committee:456#write"
+    "project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor",
+    "committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer"
   ]
 }
 ```
 
-**Response:** Results are returned in the same order as the input `requests` array.
+**Response:** Results are unordered — match on the `object#relation@user` prefix of each result to correlate with your requests.
 
 ```json
 {
   "results": [
-    "allow",
-    "deny"
+    "project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue",
+    "committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer@user:auth0|alice\tfalse"
   ]
 }
 ```
 
-Each result is either `"allow"` or `"deny"`. The resource-action pair format is `{type}:{id}#{action}`.
+Each result is a tab-separated string: `object#relation@user\ttrue` or `object#relation@user\tfalse`. The resource-action pair format is `{type}:{id}#{relation}`.
 
 ### Health Endpoints
 

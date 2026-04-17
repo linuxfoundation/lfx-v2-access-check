@@ -4,10 +4,11 @@
 // Package constants defines access control constants.
 package constants
 
-// Access control response values
+// Access control response values — each result is a tab-separated tuple
+// of the form: object#relation@user\ttrue  or  object#relation@user\tfalse.
 const (
-	// AccessAllow indicates permission is granted
-	AccessAllow = "allow"
-	// AccessDeny indicates permission is denied
-	AccessDeny = "deny"
+	// AccessTrue indicates permission is granted.
+	AccessTrue = "true"
+	// AccessFalse indicates permission is denied.
+	AccessFalse = "false"
 )

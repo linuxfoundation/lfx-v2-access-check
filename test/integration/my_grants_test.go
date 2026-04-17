@@ -52,7 +52,7 @@ func TestMyGrantsEndpoint(t *testing.T) {
 			name:           "Valid request returns grants",
 			url:            "/my-grants?v=1&object_type=project",
 			authHeader:     "Bearer valid-token",
-			natsResponse:   []byte(`{"results":["project:uuid1#writer@user:test-user","project:uuid2#auditor@user:test-user"]}`),
+			natsResponse:   []byte(`{"results":["project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice","project:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer@user:auth0|alice"]}`),
 			expectedStatus: http.StatusOK,
 			validateBody: func(t *testing.T, body []byte) {
 				var resp map[string]interface{}

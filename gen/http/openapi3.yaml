@@ -35,8 +35,8 @@ paths:
                             $ref: '#/components/schemas/CheckAccessRequestBody'
                         example:
                             requests:
-                                - project:123#read
-                                - committee:456#write
+                                - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor
+                                - committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer
             responses:
                 "200":
                     description: OK response.
@@ -46,8 +46,8 @@ paths:
                                 $ref: '#/components/schemas/CheckAccessResponseBody'
                             example:
                                 results:
-                                    - allow
-                                    - deny
+                                    - "project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue"
+                                    - "committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer@user:auth0|alice\tfalse"
                 "400":
                     description: 'BadRequest: Bad request'
                     content:
@@ -114,7 +114,7 @@ paths:
                                 $ref: '#/components/schemas/MyGrantsResponseBody'
                             example:
                                 grants:
-                                    - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#writer@user:auth0|bramwelt
+                                    - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#member@user:auth0|alice
                 "400":
                     description: 'BadRequest: Bad request'
                     content:
@@ -170,13 +170,13 @@ components:
                         example: Architecto quo iusto error veniam architecto.
                     description: Resource-action pairs to check
                     example:
-                        - project:123#read
-                        - committee:456#write
+                        - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor
+                        - committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer
                     minItems: 1
             example:
                 requests:
-                    - project:123#read
-                    - committee:456#write
+                    - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor
+                    - committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer
             required:
                 - requests
         CheckAccessResponseBody:
@@ -187,14 +187,14 @@ components:
                     items:
                         type: string
                         example: Suscipit consequatur repellendus.
-                    description: Access check results
+                    description: Access check results — each entry is 'object#relation@user\ttrue' or 'object#relation@user\tfalse'
                     example:
-                        - allow
-                        - deny
+                        - "project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue"
+                        - "committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer@user:auth0|alice\tfalse"
             example:
                 results:
-                    - allow
-                    - deny
+                    - "project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue"
+                    - "committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer@user:auth0|alice\tfalse"
             required:
                 - results
         Error:
@@ -249,10 +249,10 @@ components:
                         example: Iure accusamus est.
                     description: Direct access grants as tuple-strings
                     example:
-                        - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#writer@user:auth0|bramwelt
+                        - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#member@user:auth0|alice
             example:
                 grants:
-                    - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#writer@user:auth0|bramwelt
+                    - project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#member@user:auth0|alice
             required:
                 - grants
     securitySchemes:

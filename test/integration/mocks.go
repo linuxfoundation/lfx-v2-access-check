@@ -38,7 +38,7 @@ type MockMessagingRepository struct{}
 // Request sends a mock request message and returns a mock response for testing
 func (m *MockMessagingRepository) Request(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
 	// Return mock response
-	return []byte(`["allow","deny"]`), nil
+	return []byte("project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue\ncommittee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer@user:auth0|alice\tfalse"), nil
 }
 
 // Close closes the mock messaging connection (no-op for testing)
@@ -62,7 +62,7 @@ func (m *ConfigurableMessagingRepository) Request(ctx context.Context, subject s
 	if m.RequestFunc != nil {
 		return m.RequestFunc(ctx, subject, data, timeout)
 	}
-	return []byte(`["allow","deny"]`), nil
+	return []byte("project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue\ncommittee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer@user:auth0|alice\tfalse"), nil
 }
 
 // Close is a no-op for testing.

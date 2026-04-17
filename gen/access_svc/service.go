@@ -62,7 +62,8 @@ type CheckAccessPayload struct {
 // CheckAccessResult is the result type of the access-svc service check-access
 // method.
 type CheckAccessResult struct {
-	// Access check results
+	// Access check results — each entry is 'object#relation@user\ttrue' or
+	// 'object#relation@user\tfalse'
 	Results []string
 }
 

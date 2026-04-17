@@ -39,7 +39,7 @@ func (m *mockMessagingRepository) Request(ctx context.Context, subject string, d
 	if m.requestFunc != nil {
 		return m.requestFunc(ctx, subject, data, timeout)
 	}
-	return []byte("allow"), nil
+	return []byte("project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue"), nil
 }
 
 func (m *mockMessagingRepository) Close() error {
@@ -146,7 +146,7 @@ func TestCheckAccess_Success(t *testing.T) {
 			if subject != "lfx.access_check.request" {
 				t.Errorf("Expected subject 'lfx.access_check.request', got '%s'", subject)
 			}
-			return []byte("allow"), nil
+			return []byte("project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue"), nil
 		},
 	}
 	service := NewAccessService(authRepo, messagingRepo)
@@ -173,8 +173,8 @@ func TestCheckAccess_Success(t *testing.T) {
 		t.Errorf("Expected 1 result, got %d", len(result.Results))
 	}
 
-	if result.Results[0] != "allow" {
-		t.Errorf("Expected result 'allow', got '%s'", result.Results[0])
+	if result.Results[0] != "project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue" {
+		t.Errorf("Expected result tuple, got '%s'", result.Results[0])
 	}
 }
 

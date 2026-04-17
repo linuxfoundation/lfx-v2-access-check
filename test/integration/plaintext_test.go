@@ -47,8 +47,8 @@ func TestPlainTextFormatIntegration(t *testing.T) {
 	})
 
 	t.Run("plain text response format", func(t *testing.T) {
-		// Test response parsing - NATS returns newline-separated results
-		natsResponse := "allowed\ndenied\nallowed"
+		// Test response parsing — NATS returns newline-separated tuple-string results.
+		natsResponse := "project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue\ncommittee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer@user:auth0|alice\tfalse\nproject:a27394a3-7a6c-4d0f-9e0f-692d8753924f#writer@user:auth0|alice\ttrue"
 
 		// Parse as the service would
 		results := strings.Split(natsResponse, "\n")
@@ -63,9 +63,9 @@ func TestPlainTextFormatIntegration(t *testing.T) {
 
 		// Verify response parsing
 		assert.Len(t, validResults, 3, "Should parse 3 results")
-		assert.Equal(t, "allowed", validResults[0])
-		assert.Equal(t, "denied", validResults[1])
-		assert.Equal(t, "allowed", validResults[2])
+		assert.Contains(t, validResults[0], "\ttrue")
+		assert.Contains(t, validResults[1], "\tfalse")
+		assert.Contains(t, validResults[2], "\ttrue")
 	})
 }
 

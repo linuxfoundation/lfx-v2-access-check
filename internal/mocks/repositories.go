@@ -56,7 +56,7 @@ func (m *MockMessagingRepository) Request(ctx context.Context, subject string, d
 	if m.RequestFunc != nil {
 		return m.RequestFunc(ctx, subject, data, timeout)
 	}
-	return []byte("allow"), nil
+	return []byte("project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue"), nil
 }
 
 // Close mocks connection closing

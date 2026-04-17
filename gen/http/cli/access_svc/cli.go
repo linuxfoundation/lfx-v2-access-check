@@ -29,7 +29,7 @@ func UsageCommands() []string {
 
 // UsageExamples produces an example of a valid invocation of the CLI tool.
 func UsageExamples() string {
-	return os.Args[0] + " " + "access-svc check-access --body '{\n      \"requests\": [\n         \"project:123#read\",\n         \"committee:456#write\"\n      ]\n   }' --version \"1\" --bearer-token \"Sed occaecati officia fugit.\"" + "\n" +
+	return os.Args[0] + " " + "access-svc check-access --body '{\n      \"requests\": [\n         \"project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor\",\n         \"committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer\"\n      ]\n   }' --version \"1\" --bearer-token \"Sed occaecati officia fugit.\"" + "\n" +
 		""
 }
 
@@ -189,7 +189,7 @@ func accessSvcCheckAccessUsage() {
 
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "Example:")
-	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "access-svc check-access --body '{\n      \"requests\": [\n         \"project:123#read\",\n         \"committee:456#write\"\n      ]\n   }' --version \"1\" --bearer-token \"Sed occaecati officia fugit.\"")
+	fmt.Fprintf(os.Stderr, "    %s %s\n", os.Args[0], "access-svc check-access --body '{\n      \"requests\": [\n         \"project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor\",\n         \"committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer\"\n      ]\n   }' --version \"1\" --bearer-token \"Sed occaecati officia fugit.\"")
 }
 
 func accessSvcMyGrantsUsage() {

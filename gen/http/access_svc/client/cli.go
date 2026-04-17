@@ -23,7 +23,7 @@ func BuildCheckAccessPayload(accessSvcCheckAccessBody string, accessSvcCheckAcce
 	{
 		err = json.Unmarshal([]byte(accessSvcCheckAccessBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"requests\": [\n         \"project:123#read\",\n         \"committee:456#write\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, \nerror: %s, \nexample of valid JSON:\n%s", err, "'{\n      \"requests\": [\n         \"project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor\",\n         \"committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer\"\n      ]\n   }'")
 		}
 		if body.Requests == nil {
 			err = goa.MergeErrors(err, goa.MissingFieldError("requests", "body"))

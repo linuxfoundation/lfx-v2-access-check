@@ -26,7 +26,7 @@ func TestMyGrants_Success(t *testing.T) {
 			if subject != constants.ReadTuplesSubject {
 				t.Errorf("unexpected NATS subject: %s", subject)
 			}
-			return []byte(`{"results":["project:uuid1#writer@user:auth0|testuser","project:uuid2#auditor@user:auth0|testuser"]}`), nil
+			return []byte(`{"results":["project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|testuser","project:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer@user:auth0|testuser"]}`), nil
 		},
 	}
 	svc := NewAccessService(&mockAuthRepository{}, messagingRepo)
