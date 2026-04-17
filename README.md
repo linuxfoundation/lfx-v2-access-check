@@ -55,7 +55,7 @@ sequenceDiagram
     participant NATS as NATS Queue
     participant FGASync as fga-sync
 
-    Client->>Traefik: POST /access-check?v=1<br/>Bearer: JWT + resource list
+    Client->>Traefik: POST /access-check?v=1<br />with Bearer JWT and resource list
     Traefik->>Heimdall: Validate JWT & authorize
     Heimdall-->>Traefik: Auth success
     Traefik->>AccessCheck: Forward authenticated request
@@ -66,13 +66,13 @@ sequenceDiagram
 
     NATS->>FGASync: Deliver check request
     FGASync->>FGASync: Evaluate permissions in OpenFGA
-    FGASync-->>NATS: Return tuple-string results (object#relation@user\ttrue/false)
+    FGASync-->>NATS: Return tuple results
 
     NATS-->>AccessCheck: Authorization results
     AccessCheck-->>Traefik: JSON response with decisions
     Traefik-->>Client: Access check results
 
-    Note over AccessCheck,FGASync: Results are unordered tuples;<br/>match on object#relation@user in each result
+    Note over AccessCheck,FGASync: Results are unordered - match on object-relation-user prefix
 ```
 
 ## Quick Start
