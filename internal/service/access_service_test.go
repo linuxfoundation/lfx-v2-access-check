@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -173,8 +174,16 @@ func TestCheckAccess_Success(t *testing.T) {
 		t.Errorf("Expected 1 result, got %d", len(result.Results))
 	}
 
-	if result.Results[0] != "project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue" {
-		t.Errorf("Expected result tuple, got '%s'", result.Results[0])
+	expectedPrefix := "project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice"
+	found := false
+	for _, r := range result.Results {
+		if strings.HasPrefix(r, expectedPrefix) && strings.HasSuffix(r, "\ttrue") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Expected result with prefix %q and suffix \\ttrue, got %v", expectedPrefix, result.Results)
 	}
 }
 

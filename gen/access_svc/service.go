@@ -101,7 +101,7 @@ func MakeInternalServerError(err error) *goa.ServiceError {
 
 // MakeServiceUnavailable builds a goa.ServiceError from an error.
 func MakeServiceUnavailable(err error) *goa.ServiceError {
-	return goa.NewServiceError(err, "ServiceUnavailable", false, true, false)
+	return goa.NewServiceError(err, "ServiceUnavailable", false, true, true)
 }
 
 // MakeNotReady builds a goa.ServiceError from an error.

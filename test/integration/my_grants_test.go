@@ -174,7 +174,9 @@ func TestMyGrantsEndpoint(t *testing.T) {
 			})
 			defer ts.Close()
 
-			req, err := http.NewRequest(http.MethodGet, ts.URL+tt.url, nil)
+			reqCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, ts.URL+tt.url, nil)
 			if err != nil {
 				t.Fatalf("failed to create request: %v", err)
 			}
@@ -186,7 +188,11 @@ func TestMyGrantsEndpoint(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to make request: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					t.Errorf("failed to close response body: %v", err)
+				}
+			}()
 
 			if resp.StatusCode != tt.expectedStatus {
 				t.Errorf("expected status %d, got %d", tt.expectedStatus, resp.StatusCode)

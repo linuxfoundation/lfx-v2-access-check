@@ -90,7 +90,14 @@ func (s *AccessService) CheckAccess(ctx context.Context, p *accesssvc.CheckAcces
 	results, err := s.performAccessCheck(ctx, claims.Principal, p.Requests)
 	if err != nil {
 		slog.ErrorContext(ctx, "Access check failed", "error", err, "principal", claims.Principal)
-		return nil, accesssvc.MakeServiceUnavailable(err)
+		switch {
+		case errors.Is(err, constants.ErrPrincipalRequired):
+			return nil, accesssvc.MakeUnauthorized(err)
+		case errors.Is(err, constants.ErrUnexpectedResponse):
+			return nil, accesssvc.MakeInternalServerError(err)
+		default:
+			return nil, accesssvc.MakeServiceUnavailable(err)
+		}
 	}
 
 	slog.InfoContext(ctx, "Access check completed", "principal", claims.Principal, "requests_count", len(p.Requests))
@@ -126,7 +133,7 @@ func (s *AccessService) MyGrants(ctx context.Context, p *accesssvc.MyGrantsPaylo
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "Failed to marshal read tuples request", "error", err)
-		return nil, accesssvc.MakeBadRequest(fmt.Errorf("failed to build request: %w", err))
+		return nil, accesssvc.MakeInternalServerError(fmt.Errorf("failed to build request: %w", err))
 	}
 
 	// Send request to fga-sync via NATS.
@@ -145,7 +152,7 @@ func (s *AccessService) MyGrants(ctx context.Context, p *accesssvc.MyGrantsPaylo
 
 	if resp.Error != "" {
 		slog.ErrorContext(ctx, "Read tuples returned error", "error", resp.Error, "principal", claims.Principal)
-		return nil, accesssvc.MakeInternalServerError(errors.New(resp.Error))
+		return nil, accesssvc.MakeServiceUnavailable(errors.New("authorization backend unavailable"))
 	}
 
 	grants := resp.Results

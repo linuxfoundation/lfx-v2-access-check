@@ -136,6 +136,32 @@ func TestMyGrants_MissingClaims(t *testing.T) {
 	}
 }
 
+func TestMyGrants_EmptyResultsOmitted(t *testing.T) {
+	messagingRepo := &mockMessagingRepository{
+		requestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
+			// Omitting "results" field — service must normalize nil to empty slice.
+			return []byte(`{}`), nil
+		},
+	}
+	svc := NewAccessService(&mockAuthRepository{}, messagingRepo)
+
+	result, err := svc.MyGrants(contextWithClaims("auth0|user"), &accesssvc.MyGrantsPayload{
+		BearerToken: "tok",
+		Version:     "1",
+		ObjectType:  "project",
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Grants == nil {
+		t.Error("grants should not be nil when results field is omitted")
+	}
+	if len(result.Grants) != 0 {
+		t.Errorf("expected 0 grants, got %d", len(result.Grants))
+	}
+}
+
 func TestMyGrants_MalformedResponse(t *testing.T) {
 	messagingRepo := &mockMessagingRepository{
 		requestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
