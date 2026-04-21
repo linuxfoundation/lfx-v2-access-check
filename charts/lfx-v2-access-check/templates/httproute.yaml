@@ -26,6 +26,9 @@ spec:
         - path:
             type: PathPrefix
             value: /_access-check/
+        - path:
+            type: Exact
+            value: /my-grants
       {{- if .Values.heimdall.enabled }}
       filters:
         - type: ExtensionRef
