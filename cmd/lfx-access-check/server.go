@@ -103,7 +103,7 @@ func handleHTTPServer(ctx context.Context, cfg *config.Config, endpoints *access
 		handler = otelhttp.NewHandler(handler, "access-check",
 			otelhttp.WithFilter(func(r *http.Request) bool {
 				p := r.URL.Path
-				return p != "/healthz" && p != "/livez" && p != "/readyz"
+				return p != accesssvcsvr.LivezAccessSvcPath() && p != accesssvcsvr.ReadyzAccessSvcPath()
 			}),
 		)
 	}
