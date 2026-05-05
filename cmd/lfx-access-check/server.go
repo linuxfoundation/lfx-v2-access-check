@@ -100,7 +100,12 @@ func handleHTTPServer(ctx context.Context, cfg *config.Config, endpoints *access
 		}
 
 		// Wrap the handler with OpenTelemetry instrumentation
-		handler = otelhttp.NewHandler(handler, "access-check")
+		handler = otelhttp.NewHandler(handler, "access-check",
+			otelhttp.WithFilter(func(r *http.Request) bool {
+				p := r.URL.Path
+				return p != accesssvcsvr.LivezAccessSvcPath() && p != accesssvcsvr.ReadyzAccessSvcPath()
+			}),
+		)
 	}
 
 	// Create HTTP server
