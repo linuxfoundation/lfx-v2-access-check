@@ -64,7 +64,6 @@ func (r *messagingRepository) Request(ctx context.Context, subject string, data 
 
 	msg, err := r.conn.Request(subject, data, timeout)
 	if err != nil {
-		slog.ErrorContext(ctx, "Failed to send NATS request", "error", err, "subject", subject)
 		return nil, fmt.Errorf("%s: %w", constants.ErrMsgNATSRequestFailed, err)
 	}
 	return msg.Data, nil

@@ -126,38 +126,13 @@ func (s *AccessService) MyGrants(ctx context.Context, p *accesssvc.MyGrantsPaylo
 		return nil, accesssvc.MakeUnauthorized(constants.ErrPrincipalRequired)
 	}
 
-	// Build NATS request payload.
-	reqPayload, err := json.Marshal(readTuplesRequest{
-		User:       constants.UserTypePrefix + claims.Principal,
-		ObjectType: p.ObjectType,
-	})
+	grants, err := s.performReadTuples(ctx, claims.Principal, p.ObjectType)
 	if err != nil {
-		slog.ErrorContext(ctx, "Failed to marshal read tuples request", "error", err)
-		return nil, accesssvc.MakeInternalServerError(fmt.Errorf("failed to build request: %w", err))
-	}
-
-	// Send request to fga-sync via NATS.
-	responseData, err := s.messagingRepo.Request(ctx, constants.ReadTuplesSubject, reqPayload, constants.DefaultNATSTimeout)
-	if err != nil {
-		slog.ErrorContext(ctx, "NATS request failed", "error", err, "subject", constants.ReadTuplesSubject)
-		return nil, accesssvc.MakeServiceUnavailable(fmt.Errorf("%s: %w", constants.ErrMsgNATSRequestFailed, err))
-	}
-
-	// Parse response from fga-sync.
-	var resp readTuplesResponse
-	if err := json.Unmarshal(responseData, &resp); err != nil {
-		slog.ErrorContext(ctx, "Failed to unmarshal read tuples response", "error", err)
-		return nil, accesssvc.MakeInternalServerError(fmt.Errorf("failed to parse response: %w", err))
-	}
-
-	if resp.Error != "" {
-		slog.ErrorContext(ctx, "Read tuples returned error", "error", resp.Error, "principal", claims.Principal)
-		return nil, accesssvc.MakeServiceUnavailable(errors.New("authorization backend unavailable"))
-	}
-
-	grants := resp.Results
-	if grants == nil {
-		grants = []string{}
+		slog.ErrorContext(ctx, "Reading tuples failed", "error", err, "principal", claims.Principal)
+		if errors.Is(err, constants.ErrUnexpectedResponse) {
+			return nil, accesssvc.MakeInternalServerError(err)
+		}
+		return nil, accesssvc.MakeServiceUnavailable(err)
 	}
 
 	slog.InfoContext(ctx, "My grants completed", "principal", claims.Principal, "object_type", p.ObjectType, "grants_count", len(grants))
@@ -237,12 +212,41 @@ func (s *AccessService) performAccessCheck(ctx context.Context, principal string
 	// Make NATS request
 	responseData, err := s.messagingRepo.Request(ctx, constants.AccessCheckSubject, []byte(message), constants.DefaultNATSTimeout)
 	if err != nil {
-		slog.ErrorContext(ctx, "NATS request failed", "error", err, "subject", constants.AccessCheckSubject)
-		return nil, fmt.Errorf("%s: %w", constants.ErrMsgNATSRequestFailed, err)
+		return nil, fmt.Errorf("message to subject %s failed: %w", constants.AccessCheckSubject, err)
 	}
 
 	// Parse and validate response
 	return s.parseAccessCheckResponse(ctx, responseData)
+}
+
+// performReadTuples fetches the direct OpenFGA tuples for a principal via NATS.
+func (s *AccessService) performReadTuples(ctx context.Context, principal string, objectType string) ([]string, error) {
+	reqPayload, err := json.Marshal(readTuplesRequest{
+		User:       constants.UserTypePrefix + principal,
+		ObjectType: objectType,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to build read tuples request: %s", constants.ErrUnexpectedResponse, err)
+	}
+
+	responseData, err := s.messagingRepo.Request(ctx, constants.ReadTuplesSubject, reqPayload, constants.DefaultNATSTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("message to subject %s failed: %w", constants.ReadTuplesSubject, err)
+	}
+
+	var resp readTuplesResponse
+	if err := json.Unmarshal(responseData, &resp); err != nil {
+		return nil, fmt.Errorf("%w: failed to parse read tuples response: %s", constants.ErrUnexpectedResponse, err)
+	}
+
+	if resp.Error != "" {
+		return nil, fmt.Errorf("message to subject %s failed: %s", constants.ReadTuplesSubject, resp.Error)
+	}
+
+	if resp.Results == nil {
+		return []string{}, nil
+	}
+	return resp.Results, nil
 }
 
 // buildAccessCheckMessage creates the NATS message for access checking using efficient string building
