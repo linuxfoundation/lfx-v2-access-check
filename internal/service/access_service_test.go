@@ -388,6 +388,185 @@ func TestPerformAccessCheck_UnexpectedResponse(t *testing.T) {
 	}
 }
 
+// contextWithClaims returns a context with HeimdallClaims pre-loaded.
+func contextWithClaims(principal string) context.Context {
+	claims := &contracts.HeimdallClaims{Principal: principal, Email: "test@example.com"}
+	return context.WithValue(context.Background(), constants.ClaimsContextKey, claims)
+}
+
+func TestMyGrants_Success(t *testing.T) {
+	const principal = "auth0|testuser"
+	messagingRepo := &mockMessagingRepository{
+		requestFunc: func(_ context.Context, subject string, _ []byte, _ time.Duration) ([]byte, error) {
+			if subject != constants.ReadTuplesSubject {
+				t.Errorf("unexpected NATS subject: %s", subject)
+			}
+			return []byte(`{"results":["project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|testuser","project:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer@user:auth0|testuser"]}`), nil
+		},
+	}
+	svc := NewAccessService(&mockAuthRepository{}, messagingRepo)
+
+	result, err := svc.MyGrants(contextWithClaims(principal), &accesssvc.MyGrantsPayload{
+		BearerToken: "tok",
+		Version:     "1",
+		ObjectType:  "project",
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Grants) != 2 {
+		t.Errorf("expected 2 grants, got %d", len(result.Grants))
+	}
+}
+
+func TestMyGrants_EmptyResults(t *testing.T) {
+	messagingRepo := &mockMessagingRepository{
+		requestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
+			return []byte(`{"results":[]}`), nil
+		},
+	}
+	svc := NewAccessService(&mockAuthRepository{}, messagingRepo)
+
+	result, err := svc.MyGrants(contextWithClaims("auth0|user"), &accesssvc.MyGrantsPayload{
+		BearerToken: "tok",
+		Version:     "1",
+		ObjectType:  "committee",
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Grants == nil {
+		t.Error("grants should not be nil")
+	}
+	if len(result.Grants) != 0 {
+		t.Errorf("expected 0 grants, got %d", len(result.Grants))
+	}
+}
+
+func TestMyGrants_UnsupportedVersion(t *testing.T) {
+	svc := NewAccessService(&mockAuthRepository{}, &mockMessagingRepository{})
+
+	_, err := svc.MyGrants(contextWithClaims("auth0|user"), &accesssvc.MyGrantsPayload{
+		BearerToken: "tok",
+		Version:     "2",
+		ObjectType:  "project",
+	})
+
+	if err == nil {
+		t.Fatal("expected error for unsupported version, got nil")
+	}
+}
+
+func TestMyGrants_MissingClaims(t *testing.T) {
+	svc := NewAccessService(&mockAuthRepository{}, &mockMessagingRepository{})
+
+	_, err := svc.MyGrants(context.Background(), &accesssvc.MyGrantsPayload{
+		BearerToken: "tok",
+		Version:     "1",
+		ObjectType:  "project",
+	})
+
+	if err == nil {
+		t.Fatal("expected unauthorized error, got nil")
+	}
+}
+
+func TestPerformReadTuples_Success(t *testing.T) {
+	messagingRepo := &mockMessagingRepository{
+		requestFunc: func(_ context.Context, subject string, _ []byte, _ time.Duration) ([]byte, error) {
+			if subject != constants.ReadTuplesSubject {
+				t.Errorf("unexpected NATS subject: %s", subject)
+			}
+			return []byte(`{"results":["project:abc#auditor@user:alice","committee:xyz#writer@user:alice"]}`), nil
+		},
+	}
+	svc := NewAccessService(&mockAuthRepository{}, messagingRepo)
+
+	results, err := svc.performReadTuples(context.Background(), "alice", "project")
+	if err != nil {
+		t.Fatalf("performReadTuples failed: %v", err)
+	}
+	if len(results) != 2 {
+		t.Errorf("expected 2 results, got %d", len(results))
+	}
+}
+
+func TestPerformReadTuples_NilResultsNormalized(t *testing.T) {
+	messagingRepo := &mockMessagingRepository{
+		requestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
+			return []byte(`{}`), nil
+		},
+	}
+	svc := NewAccessService(&mockAuthRepository{}, messagingRepo)
+
+	results, err := svc.performReadTuples(context.Background(), "alice", "project")
+	if err != nil {
+		t.Fatalf("performReadTuples failed: %v", err)
+	}
+	if results == nil {
+		t.Error("expected empty slice, got nil")
+	}
+	if len(results) != 0 {
+		t.Errorf("expected 0 results, got %d", len(results))
+	}
+}
+
+func TestPerformReadTuples_NATSFailure(t *testing.T) {
+	messagingRepo := &mockMessagingRepository{
+		requestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
+			return nil, errors.New("nats timeout")
+		},
+	}
+	svc := NewAccessService(&mockAuthRepository{}, messagingRepo)
+
+	_, err := svc.performReadTuples(context.Background(), "alice", "project")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "NATS request to subject") {
+		t.Errorf("expected NATS transport error message, got '%s'", err.Error())
+	}
+}
+
+func TestPerformReadTuples_UnmarshalFailure(t *testing.T) {
+	messagingRepo := &mockMessagingRepository{
+		requestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
+			return []byte(`not valid json`), nil
+		},
+	}
+	svc := NewAccessService(&mockAuthRepository{}, messagingRepo)
+
+	_, err := svc.performReadTuples(context.Background(), "alice", "project")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !errors.Is(err, constants.ErrUnexpectedResponse) {
+		t.Errorf("expected ErrUnexpectedResponse, got '%s'", err.Error())
+	}
+}
+
+func TestPerformReadTuples_BackendError(t *testing.T) {
+	messagingRepo := &mockMessagingRepository{
+		requestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
+			return []byte(`{"error":"store not found"}`), nil
+		},
+	}
+	svc := NewAccessService(&mockAuthRepository{}, messagingRepo)
+
+	_, err := svc.performReadTuples(context.Background(), "alice", "project")
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "FGA error") {
+		t.Errorf("expected FGA error message, got '%s'", err.Error())
+	}
+	if strings.Contains(err.Error(), "NATS request") {
+		t.Errorf("backend error should not look like a NATS transport error, got '%s'", err.Error())
+	}
+}
+
 // Unit tests for refactored helper methods
 
 func TestBuildAccessCheckMessage(t *testing.T) {
