@@ -383,8 +383,8 @@ func TestPerformAccessCheck_UnexpectedResponse(t *testing.T) {
 		t.Fatal("performAccessCheck should have failed with unexpected response")
 	}
 
-	if err.Error() != "unexpected response from access check service" {
-		t.Errorf("Expected 'unexpected response from access check service', got '%s'", err.Error())
+	if !errors.Is(err, constants.ErrUnexpectedResponse) {
+		t.Errorf("Expected ErrUnexpectedResponse, got '%s'", err.Error())
 	}
 }
 

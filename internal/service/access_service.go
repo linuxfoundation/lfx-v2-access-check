@@ -195,7 +195,6 @@ func (s *AccessService) Livez(ctx context.Context) ([]byte, error) {
 // performAccessCheck contains the core business logic for access checking
 func (s *AccessService) performAccessCheck(ctx context.Context, principal string, resources []string) ([]string, error) {
 	if principal == "" {
-		slog.ErrorContext(ctx, "Principal is required for access check")
 		return nil, constants.ErrPrincipalRequired
 	}
 
@@ -295,8 +294,7 @@ func (s *AccessService) parseAccessCheckResponse(ctx context.Context, responseDa
 		topRange = len(responseData)
 	}
 	if bytes.Contains(responseData[:topRange], []byte(" ")) {
-		slog.ErrorContext(ctx, "Unexpected response from access check service", "response_preview", string(responseData[:topRange]))
-		return nil, constants.ErrUnexpectedResponse
+		return nil, fmt.Errorf("%w: response_preview=%q", constants.ErrUnexpectedResponse, string(responseData[:topRange]))
 	}
 
 	// Parse response - split by newlines to get individual results
