@@ -54,7 +54,10 @@ func (s *AccessService) JWTAuth(ctx context.Context, token string, _ *security.J
 	claims, err := s.authRepo.ValidateToken(ctx, token)
 	if err != nil {
 		slog.ErrorContext(ctx, "JWT validation failed", "error", err)
-		return nil, accesssvc.MakeUnauthorized(err)
+		if errors.Is(err, constants.ErrUnexpectedResponse) {
+			return nil, accesssvc.MakeInternalServerError(constants.ErrUnexpectedResponse)
+		}
+		return nil, accesssvc.MakeUnauthorized(constants.ErrInvalidToken)
 	}
 
 	// Add claims to context for use in endpoints
@@ -94,9 +97,9 @@ func (s *AccessService) CheckAccess(ctx context.Context, p *accesssvc.CheckAcces
 		case errors.Is(err, constants.ErrPrincipalRequired):
 			return nil, accesssvc.MakeUnauthorized(err)
 		case errors.Is(err, constants.ErrUnexpectedResponse):
-			return nil, accesssvc.MakeInternalServerError(err)
+			return nil, accesssvc.MakeInternalServerError(constants.ErrUnexpectedResponse)
 		default:
-			return nil, accesssvc.MakeServiceUnavailable(errors.New("access check failed"))
+			return nil, accesssvc.MakeServiceUnavailable(constants.ErrAccessCheckFailed)
 		}
 	}
 
@@ -130,9 +133,9 @@ func (s *AccessService) MyGrants(ctx context.Context, p *accesssvc.MyGrantsPaylo
 	if err != nil {
 		slog.ErrorContext(ctx, "Reading tuples failed", "error", err, "principal", claims.Principal, "subject", constants.ReadTuplesSubject, "object_type", p.ObjectType)
 		if errors.Is(err, constants.ErrUnexpectedResponse) {
-			return nil, accesssvc.MakeInternalServerError(err)
+			return nil, accesssvc.MakeInternalServerError(constants.ErrUnexpectedResponse)
 		}
-		return nil, accesssvc.MakeServiceUnavailable(errors.New("reading tuples failed"))
+		return nil, accesssvc.MakeServiceUnavailable(constants.ErrReadingTuplesFailed)
 	}
 
 	slog.InfoContext(ctx, "My grants completed", "principal", claims.Principal, "object_type", p.ObjectType, "grants_count", len(grants))

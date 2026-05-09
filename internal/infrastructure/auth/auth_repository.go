@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"strings"
 
-	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
 	"github.com/auth0/go-jwt-middleware/v2/jwks"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/domain/contracts"
@@ -88,12 +87,12 @@ func (r *authRepository) ValidateToken(ctx context.Context, token string) (*cont
 	// Extract custom claims
 	validatedClaims, ok := claims.(*validator.ValidatedClaims)
 	if !ok {
-		return nil, fmt.Errorf("failed to cast to ValidatedClaims: %w", jwtmiddleware.ErrJWTInvalid)
+		return nil, fmt.Errorf("%w: unexpected validated claims type %T", constants.ErrUnexpectedResponse, claims)
 	}
 
 	customClaims, ok := validatedClaims.CustomClaims.(*contracts.HeimdallClaims)
 	if !ok {
-		return nil, fmt.Errorf("failed to cast to HeimdallClaims: %w", jwtmiddleware.ErrJWTInvalid)
+		return nil, fmt.Errorf("%w: unexpected custom claims type %T", constants.ErrUnexpectedResponse, validatedClaims.CustomClaims)
 	}
 
 	return customClaims, nil
