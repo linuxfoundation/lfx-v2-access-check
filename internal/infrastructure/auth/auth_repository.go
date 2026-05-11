@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"strings"
 
-	jwtmiddleware "github.com/auth0/go-jwt-middleware/v2"
 	"github.com/auth0/go-jwt-middleware/v2/jwks"
 	"github.com/auth0/go-jwt-middleware/v2/validator"
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/domain/contracts"
@@ -35,14 +34,12 @@ func NewAuthRepository(jwksURL, issuer, audience string) (contracts.AuthReposito
 	// Parse URLs
 	jwksU, err := url.Parse(jwksURL)
 	if err != nil {
-		slog.Error("Failed to parse JWKS URL", "error", err, "jwks_url", jwksURL)
-		return nil, err
+		return nil, fmt.Errorf("failed to parse JWKS URL %s: %w", jwksURL, err)
 	}
 
 	issuerU, err := url.Parse(issuer)
 	if err != nil {
-		slog.Error("Failed to parse issuer URL", "error", err, "issuer", issuer)
-		return nil, err
+		return nil, fmt.Errorf("failed to parse issuer URL %s: %w", issuer, err)
 	}
 
 	// Set up JWKS provider with OTel-instrumented HTTP client
@@ -71,8 +68,7 @@ func NewAuthRepository(jwksURL, issuer, audience string) (contracts.AuthReposito
 		validator.WithAllowedClockSkew(constants.JWTClockSkew),
 	)
 	if err != nil {
-		slog.Error("Failed to create JWT validator", "error", err, "issuer", issuer, "audience", audience)
-		return nil, err
+		return nil, fmt.Errorf("failed to create JWT validator for issuer %s: %w", issuer, err)
 	}
 
 	return &authRepository{
@@ -85,21 +81,18 @@ func (r *authRepository) ValidateToken(ctx context.Context, token string) (*cont
 	// Validate the token
 	claims, err := r.validator.ValidateToken(ctx, token)
 	if err != nil {
-		slog.ErrorContext(ctx, "JWT token validation failed", "error", err)
 		return nil, err
 	}
 
 	// Extract custom claims
 	validatedClaims, ok := claims.(*validator.ValidatedClaims)
 	if !ok {
-		slog.ErrorContext(ctx, "Failed to cast to ValidatedClaims")
-		return nil, jwtmiddleware.ErrJWTInvalid
+		return nil, fmt.Errorf("%w: unexpected validated claims type %T", constants.ErrUnexpectedResponse, claims)
 	}
 
 	customClaims, ok := validatedClaims.CustomClaims.(*contracts.HeimdallClaims)
 	if !ok {
-		slog.ErrorContext(ctx, "Failed to cast to HeimdallClaims")
-		return nil, jwtmiddleware.ErrJWTInvalid
+		return nil, fmt.Errorf("%w: unexpected custom claims type %T", constants.ErrUnexpectedResponse, validatedClaims.CustomClaims)
 	}
 
 	return customClaims, nil

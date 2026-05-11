@@ -58,13 +58,11 @@ func NewMessagingRepository(natsURL string) (contracts.MessagingRepository, erro
 // Request sends a request message to the specified subject and waits for a response
 func (r *messagingRepository) Request(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error) {
 	if r.conn == nil {
-		slog.ErrorContext(ctx, "NATS connection not initialized")
 		return nil, constants.ErrNATSConnNotInit
 	}
 
 	msg, err := r.conn.Request(subject, data, timeout)
 	if err != nil {
-		slog.ErrorContext(ctx, "Failed to send NATS request", "error", err, "subject", subject)
 		return nil, fmt.Errorf("%s: %w", constants.ErrMsgNATSRequestFailed, err)
 	}
 	return msg.Data, nil

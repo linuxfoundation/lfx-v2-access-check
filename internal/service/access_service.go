@@ -54,7 +54,10 @@ func (s *AccessService) JWTAuth(ctx context.Context, token string, _ *security.J
 	claims, err := s.authRepo.ValidateToken(ctx, token)
 	if err != nil {
 		slog.ErrorContext(ctx, "JWT validation failed", "error", err)
-		return nil, accesssvc.MakeUnauthorized(err)
+		if errors.Is(err, constants.ErrUnexpectedResponse) {
+			return nil, accesssvc.MakeInternalServerError(constants.ErrUnexpectedResponse)
+		}
+		return nil, accesssvc.MakeUnauthorized(constants.ErrInvalidToken)
 	}
 
 	// Add claims to context for use in endpoints
@@ -94,9 +97,9 @@ func (s *AccessService) CheckAccess(ctx context.Context, p *accesssvc.CheckAcces
 		case errors.Is(err, constants.ErrPrincipalRequired):
 			return nil, accesssvc.MakeUnauthorized(err)
 		case errors.Is(err, constants.ErrUnexpectedResponse):
-			return nil, accesssvc.MakeInternalServerError(err)
+			return nil, accesssvc.MakeInternalServerError(constants.ErrUnexpectedResponse)
 		default:
-			return nil, accesssvc.MakeServiceUnavailable(err)
+			return nil, accesssvc.MakeServiceUnavailable(constants.ErrAccessCheckFailed)
 		}
 	}
 
@@ -126,38 +129,13 @@ func (s *AccessService) MyGrants(ctx context.Context, p *accesssvc.MyGrantsPaylo
 		return nil, accesssvc.MakeUnauthorized(constants.ErrPrincipalRequired)
 	}
 
-	// Build NATS request payload.
-	reqPayload, err := json.Marshal(readTuplesRequest{
-		User:       constants.UserTypePrefix + claims.Principal,
-		ObjectType: p.ObjectType,
-	})
+	grants, err := s.performReadTuples(ctx, claims.Principal, p.ObjectType)
 	if err != nil {
-		slog.ErrorContext(ctx, "Failed to marshal read tuples request", "error", err)
-		return nil, accesssvc.MakeInternalServerError(fmt.Errorf("failed to build request: %w", err))
-	}
-
-	// Send request to fga-sync via NATS.
-	responseData, err := s.messagingRepo.Request(ctx, constants.ReadTuplesSubject, reqPayload, constants.DefaultNATSTimeout)
-	if err != nil {
-		slog.ErrorContext(ctx, "NATS request failed", "error", err, "subject", constants.ReadTuplesSubject)
-		return nil, accesssvc.MakeServiceUnavailable(fmt.Errorf("%s: %w", constants.ErrMsgNATSRequestFailed, err))
-	}
-
-	// Parse response from fga-sync.
-	var resp readTuplesResponse
-	if err := json.Unmarshal(responseData, &resp); err != nil {
-		slog.ErrorContext(ctx, "Failed to unmarshal read tuples response", "error", err)
-		return nil, accesssvc.MakeInternalServerError(fmt.Errorf("failed to parse response: %w", err))
-	}
-
-	if resp.Error != "" {
-		slog.ErrorContext(ctx, "Read tuples returned error", "error", resp.Error, "principal", claims.Principal)
-		return nil, accesssvc.MakeServiceUnavailable(errors.New("authorization backend unavailable"))
-	}
-
-	grants := resp.Results
-	if grants == nil {
-		grants = []string{}
+		slog.ErrorContext(ctx, "Reading tuples failed", "error", err, "principal", claims.Principal, "subject", constants.ReadTuplesSubject, "object_type", p.ObjectType)
+		if errors.Is(err, constants.ErrUnexpectedResponse) {
+			return nil, accesssvc.MakeInternalServerError(constants.ErrUnexpectedResponse)
+		}
+		return nil, accesssvc.MakeServiceUnavailable(constants.ErrReadingTuplesFailed)
 	}
 
 	slog.InfoContext(ctx, "My grants completed", "principal", claims.Principal, "object_type", p.ObjectType, "grants_count", len(grants))
@@ -220,7 +198,6 @@ func (s *AccessService) Livez(ctx context.Context) ([]byte, error) {
 // performAccessCheck contains the core business logic for access checking
 func (s *AccessService) performAccessCheck(ctx context.Context, principal string, resources []string) ([]string, error) {
 	if principal == "" {
-		slog.ErrorContext(ctx, "Principal is required for access check")
 		return nil, constants.ErrPrincipalRequired
 	}
 
@@ -237,12 +214,41 @@ func (s *AccessService) performAccessCheck(ctx context.Context, principal string
 	// Make NATS request
 	responseData, err := s.messagingRepo.Request(ctx, constants.AccessCheckSubject, []byte(message), constants.DefaultNATSTimeout)
 	if err != nil {
-		slog.ErrorContext(ctx, "NATS request failed", "error", err, "subject", constants.AccessCheckSubject)
-		return nil, fmt.Errorf("%s: %w", constants.ErrMsgNATSRequestFailed, err)
+		return nil, fmt.Errorf("NATS request to subject %s failed: %w", constants.AccessCheckSubject, err)
 	}
 
 	// Parse and validate response
 	return s.parseAccessCheckResponse(ctx, responseData)
+}
+
+// performReadTuples fetches the direct OpenFGA tuples for a principal via NATS.
+func (s *AccessService) performReadTuples(ctx context.Context, principal string, objectType string) ([]string, error) {
+	reqPayload, err := json.Marshal(readTuplesRequest{
+		User:       constants.UserTypePrefix + principal,
+		ObjectType: objectType,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("%w: failed to build read tuples request: %v", constants.ErrUnexpectedResponse, err)
+	}
+
+	responseData, err := s.messagingRepo.Request(ctx, constants.ReadTuplesSubject, reqPayload, constants.DefaultNATSTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("NATS request to subject %s failed: %w", constants.ReadTuplesSubject, err)
+	}
+
+	var resp readTuplesResponse
+	if err := json.Unmarshal(responseData, &resp); err != nil {
+		return nil, fmt.Errorf("%w: failed to parse read tuples response: %v", constants.ErrUnexpectedResponse, err)
+	}
+
+	if resp.Error != "" {
+		return nil, fmt.Errorf("message to subject %s failed with FGA error: %s", constants.ReadTuplesSubject, resp.Error)
+	}
+
+	if resp.Results == nil {
+		return []string{}, nil
+	}
+	return resp.Results, nil
 }
 
 // buildAccessCheckMessage creates the NATS message for access checking using efficient string building
@@ -291,8 +297,7 @@ func (s *AccessService) parseAccessCheckResponse(ctx context.Context, responseDa
 		topRange = len(responseData)
 	}
 	if bytes.Contains(responseData[:topRange], []byte(" ")) {
-		slog.ErrorContext(ctx, "Unexpected response from access check service", "response_preview", string(responseData[:topRange]))
-		return nil, constants.ErrUnexpectedResponse
+		return nil, fmt.Errorf("%w: response_preview=%q", constants.ErrUnexpectedResponse, string(responseData[:topRange]))
 	}
 
 	// Parse response - split by newlines to get individual results
