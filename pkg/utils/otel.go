@@ -298,6 +298,43 @@ func endpointURL(raw string, insecure bool) string {
 	return "https://" + raw
 }
 
+// newSampler creates a trace.Sampler from OTEL_TRACES_SAMPLER and
+// OTEL_TRACES_SAMPLER_ARG environment variables, falling back to
+// parentbased_traceidratio with cfg.TracesSampleRatio when unset.
+// This ensures parent span sampling decisions are always honored.
+func newSampler(cfg OTelConfig) sdktrace.Sampler {
+	sampler := os.Getenv("OTEL_TRACES_SAMPLER")
+	arg := os.Getenv("OTEL_TRACES_SAMPLER_ARG")
+
+	parseRatio := func() float64 {
+		if arg != "" {
+			r, err := strconv.ParseFloat(arg, 64)
+			if err == nil && r >= 0.0 && r <= 1.0 {
+				return r
+			}
+			slog.Warn("invalid OTEL_TRACES_SAMPLER_ARG, using TracesSampleRatio", "value", arg)
+		}
+		return cfg.TracesSampleRatio
+	}
+
+	switch sampler {
+	case "always_on":
+		return sdktrace.AlwaysSample()
+	case "always_off":
+		return sdktrace.NeverSample()
+	case "traceidratio":
+		return sdktrace.TraceIDRatioBased(parseRatio())
+	case "parentbased_always_on":
+		return sdktrace.ParentBased(sdktrace.AlwaysSample())
+	case "parentbased_always_off":
+		return sdktrace.ParentBased(sdktrace.NeverSample())
+	case "parentbased_traceidratio":
+		return sdktrace.ParentBased(sdktrace.TraceIDRatioBased(parseRatio()))
+	default: // empty/unknown → parent-based with configured ratio
+		return sdktrace.ParentBased(sdktrace.TraceIDRatioBased(cfg.TracesSampleRatio))
+	}
+}
+
 // newTraceProvider creates a TracerProvider with an OTLP exporter configured based on the protocol setting.
 func newTraceProvider(ctx context.Context, cfg OTelConfig, res *resource.Resource) (*sdktrace.TracerProvider, error) {
 	var exporter sdktrace.SpanExporter
@@ -329,7 +366,7 @@ func newTraceProvider(ctx context.Context, cfg OTelConfig, res *resource.Resourc
 
 	traceProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithResource(res),
-		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(cfg.TracesSampleRatio)),
+		sdktrace.WithSampler(newSampler(cfg)),
 		sdktrace.WithBatcher(exporter,
 			sdktrace.WithBatchTimeout(time.Second),
 		),
