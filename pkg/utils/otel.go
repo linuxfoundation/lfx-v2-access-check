@@ -127,6 +127,16 @@ func OTelConfigFromEnv() OTelConfig {
 	tracesSampler := strings.ToLower(strings.TrimSpace(os.Getenv("OTEL_TRACES_SAMPLER")))
 	tracesSamplerArg := strings.TrimSpace(os.Getenv("OTEL_TRACES_SAMPLER_ARG"))
 
+	// Support deprecated OTEL_TRACES_SAMPLE_RATIO as fallback when OTEL_TRACES_SAMPLER_ARG is unset.
+	if tracesSamplerArg == "" {
+		legacySampleRatio := strings.TrimSpace(os.Getenv("OTEL_TRACES_SAMPLE_RATIO"))
+		if legacySampleRatio != "" {
+			tracesSamplerArg = legacySampleRatio
+			slog.Debug("using deprecated OTEL_TRACES_SAMPLE_RATIO for sampler argument",
+				"provided-value", legacySampleRatio)
+		}
+	}
+
 	slog.With(
 		"service-name", serviceName,
 		"version", serviceVersion,
@@ -302,11 +312,17 @@ func newSampler(cfg OTelConfig) sdktrace.Sampler {
 	parseRatio := func() float64 {
 		if cfg.TracesSamplerArg != "" {
 			r, err := strconv.ParseFloat(cfg.TracesSamplerArg, 64)
-			if err == nil && r >= 0.0 && r <= 1.0 {
-				return r
+			if err != nil {
+				slog.Warn("OTEL_TRACES_SAMPLER_ARG failed to parse, defaulting to 1.0",
+					"provided-value", cfg.TracesSamplerArg, "error", err)
+				return 1.0
 			}
-			slog.Warn("invalid OTEL_TRACES_SAMPLER_ARG, defaulting to 1.0",
-				"provided-value", cfg.TracesSamplerArg, "error", err)
+			if r < 0.0 || r > 1.0 {
+				slog.Warn("OTEL_TRACES_SAMPLER_ARG out of range [0.0, 1.0], defaulting to 1.0",
+					"provided-value", cfg.TracesSamplerArg, "min", 0.0, "max", 1.0)
+				return 1.0
+			}
+			return r
 		}
 		return 1.0
 	}
