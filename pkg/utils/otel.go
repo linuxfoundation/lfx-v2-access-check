@@ -64,10 +64,14 @@ type OTelConfig struct {
 	// Env: OTEL_TRACES_EXPORTER (default: "none")
 	TracesExporter string
 	// TracesSampler specifies the sampler to use for traces.
-	// Env: OTEL_TRACES_SAMPLER (default: "")
+	// Env: OTEL_TRACES_SAMPLER (default: "parentbased_traceidratio")
+	// Supported values: "always_on", "always_off", "traceidratio",
+	// "parentbased_always_on", "parentbased_always_off", "parentbased_traceidratio".
+	// When empty, the application defaults to parentbased_traceidratio.
 	TracesSampler string
-	// TracesSamplerArg is the argument for the traces sampler.
-	// Env: OTEL_TRACES_SAMPLER_ARG (default: "")
+	// TracesSamplerArg is the argument for the traces sampler (e.g., sampling ratio).
+	// Env: OTEL_TRACES_SAMPLER_ARG (default: "1.0")
+	// Used by ratio-based samplers: "traceidratio" and "parentbased_traceidratio".
 	TracesSamplerArg string
 	// MetricsExporter specifies the metrics exporter: "otlp" or "none".
 	// Env: OTEL_METRICS_EXPORTER (default: "none")
@@ -321,11 +325,12 @@ func newSampler(cfg OTelConfig) sdktrace.Sampler {
 	case "parentbased_traceidratio":
 		return sdktrace.ParentBased(sdktrace.TraceIDRatioBased(parseRatio()))
 	default:
+		ratio := parseRatio()
 		if cfg.TracesSampler != "" {
 			slog.Warn("unknown OTEL_TRACES_SAMPLER, falling back to parentbased_traceidratio",
-				"provided-value", cfg.TracesSampler)
+				"provided-value", cfg.TracesSampler, "effective-ratio", ratio)
 		}
-		return sdktrace.ParentBased(sdktrace.TraceIDRatioBased(parseRatio()))
+		return sdktrace.ParentBased(sdktrace.TraceIDRatioBased(ratio))
 	}
 }
 

@@ -368,11 +368,33 @@ func TestNewSampler_ParentHonored(t *testing.T) {
 	cfg := OTelConfig{}
 	s := newSampler(cfg) // default = parentbased_traceidratio
 
-	// With a sampled parent, child should also be sampled
-	sampledParent := trace.SpanContext{}.WithTraceFlags(trace.FlagsSampled)
+	// Create a valid remote parent span context with non-zero TraceID/SpanID
+	traceID, _ := trace.TraceIDFromHex("4bf92f3577b34da6a3ce929d0e0e4736")
+	spanID, _ := trace.SpanIDFromHex("00f067aa0ba902b7")
+
+	// Test 1: With a sampled parent, child should also be sampled
+	sampledParent := trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID:    traceID,
+		SpanID:     spanID,
+		TraceFlags: trace.FlagsSampled,
+		Remote:     true,
+	})
 	parentCtx := trace.ContextWithRemoteSpanContext(context.Background(), sampledParent)
 	result := s.ShouldSample(sdktrace.SamplingParameters{ParentContext: parentCtx})
 	if result.Decision != sdktrace.RecordAndSample {
 		t.Errorf("expected RecordAndSample with sampled parent, got %v", result.Decision)
+	}
+
+	// Test 2: With an unsampled parent, child should not be sampled
+	unsampledParent := trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID:    traceID,
+		SpanID:     spanID,
+		TraceFlags: 0, // not sampled
+		Remote:     true,
+	})
+	parentCtx = trace.ContextWithRemoteSpanContext(context.Background(), unsampledParent)
+	result = s.ShouldSample(sdktrace.SamplingParameters{ParentContext: parentCtx})
+	if result.Decision != sdktrace.Drop {
+		t.Errorf("expected Drop with unsampled parent, got %v", result.Decision)
 	}
 }
