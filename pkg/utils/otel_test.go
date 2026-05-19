@@ -7,8 +7,8 @@ import (
 	"context"
 	"testing"
 
-	"go.opentelemetry.io/otel/trace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // TestOTelConfigFromEnv_Defaults verifies that OTelConfigFromEnv returns
@@ -99,12 +99,12 @@ func TestOTelConfigFromEnv_UnsupportedProtocol(t *testing.T) {
 // disabled, and that the returned shutdown function works correctly.
 func TestSetupOTelSDKWithConfig_AllDisabled(t *testing.T) {
 	cfg := OTelConfig{
-		ServiceName:    "test-service",
-		ServiceVersion: "1.0.0",
-		Protocol:       OTelProtocolGRPC,
-		TracesExporter: OTelExporterNone,
+		ServiceName:     "test-service",
+		ServiceVersion:  "1.0.0",
+		Protocol:        OTelProtocolGRPC,
+		TracesExporter:  OTelExporterNone,
 		MetricsExporter: OTelExporterNone,
-		LogsExporter:   OTelExporterNone,
+		LogsExporter:    OTelExporterNone,
 	}
 
 	ctx := context.Background()
@@ -291,15 +291,15 @@ func TestSetupOTelSDKWithConfig_IPEndpoint(t *testing.T) {
 	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "127.0.0.1:4317")
 
 	cfg := OTelConfig{
-		ServiceName:    "test-service",
-		ServiceVersion: "1.0.0",
-		Protocol:       OTelProtocolGRPC,
-		Endpoint:       "127.0.0.1:4317",
-		Insecure:       true,
-		TracesExporter: OTelExporterOTLP,
+		ServiceName:     "test-service",
+		ServiceVersion:  "1.0.0",
+		Protocol:        OTelProtocolGRPC,
+		Endpoint:        "127.0.0.1:4317",
+		Insecure:        true,
+		TracesExporter:  OTelExporterOTLP,
 		MetricsExporter: OTelExporterNone,
-		LogsExporter:   OTelExporterNone,
-		Propagators:    "tracecontext,baggage",
+		LogsExporter:    OTelExporterNone,
+		Propagators:     "tracecontext,baggage",
 	}
 
 	ctx := context.Background()
