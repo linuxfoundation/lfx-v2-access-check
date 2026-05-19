@@ -63,10 +63,6 @@ type OTelConfig struct {
 	// TracesExporter specifies the traces exporter: "otlp" or "none".
 	// Env: OTEL_TRACES_EXPORTER (default: "none")
 	TracesExporter string
-	// TracesSampleRatio specifies the sampling ratio for traces (0.0 to 1.0).
-	// A value of 1.0 means all traces are sampled, 0.5 means 50% are sampled.
-	// Env: OTEL_TRACES_SAMPLE_RATIO (default: 1.0)
-	TracesSampleRatio float64
 	// TracesSampler specifies the sampler to use for traces.
 	// Env: OTEL_TRACES_SAMPLER (default: "")
 	TracesSampler string
@@ -124,21 +120,6 @@ func OTelConfigFromEnv() OTelConfig {
 		propagators = "tracecontext,baggage"
 	}
 
-	tracesSampleRatio := 1.0
-	if ratio := os.Getenv("OTEL_TRACES_SAMPLE_RATIO"); ratio != "" {
-		if parsed, err := strconv.ParseFloat(ratio, 64); err == nil {
-			if parsed >= 0.0 && parsed <= 1.0 {
-				tracesSampleRatio = parsed
-			} else {
-				slog.Warn("OTEL_TRACES_SAMPLE_RATIO must be between 0.0 and 1.0, using default 1.0",
-					"provided-value", ratio)
-			}
-		} else {
-			slog.Warn("invalid OTEL_TRACES_SAMPLE_RATIO value, using default 1.0",
-				"provided-value", ratio, "error", err)
-		}
-	}
-
 	tracesSampler := strings.ToLower(strings.TrimSpace(os.Getenv("OTEL_TRACES_SAMPLER")))
 	tracesSamplerArg := strings.TrimSpace(os.Getenv("OTEL_TRACES_SAMPLER_ARG"))
 
@@ -149,7 +130,6 @@ func OTelConfigFromEnv() OTelConfig {
 		"endpoint", endpoint,
 		"insecure", insecure,
 		"traces-exporter", tracesExporter,
-		"traces-sample-ratio", tracesSampleRatio,
 		"traces-sampler", tracesSampler,
 		"traces-sampler-arg", tracesSamplerArg,
 		"metrics-exporter", metricsExporter,
@@ -158,18 +138,17 @@ func OTelConfigFromEnv() OTelConfig {
 	).Debug("OTelConfig")
 
 	return OTelConfig{
-		ServiceName:       serviceName,
-		ServiceVersion:    serviceVersion,
-		Protocol:          protocol,
-		Endpoint:          endpoint,
-		Insecure:          insecure,
-		TracesExporter:    tracesExporter,
-		TracesSampleRatio: tracesSampleRatio,
-		TracesSampler:     tracesSampler,
-		TracesSamplerArg:  tracesSamplerArg,
-		MetricsExporter:   metricsExporter,
-		LogsExporter:      logsExporter,
-		Propagators:       propagators,
+		ServiceName:      serviceName,
+		ServiceVersion:   serviceVersion,
+		Protocol:         protocol,
+		Endpoint:         endpoint,
+		Insecure:         insecure,
+		TracesExporter:   tracesExporter,
+		TracesSampler:    tracesSampler,
+		TracesSamplerArg: tracesSamplerArg,
+		MetricsExporter:  metricsExporter,
+		LogsExporter:     logsExporter,
+		Propagators:      propagators,
 	}
 }
 
@@ -313,7 +292,7 @@ func endpointURL(raw string, insecure bool) string {
 
 // newSampler creates a trace.Sampler from OTEL_TRACES_SAMPLER and
 // OTEL_TRACES_SAMPLER_ARG configuration, falling back to
-// parentbased_traceidratio with cfg.TracesSampleRatio when unset.
+// parentbased_traceidratio with a default ratio of 1.0 when unset.
 // This ensures parent span sampling decisions are always honored.
 func newSampler(cfg OTelConfig) sdktrace.Sampler {
 	parseRatio := func() float64 {
@@ -322,10 +301,10 @@ func newSampler(cfg OTelConfig) sdktrace.Sampler {
 			if err == nil && r >= 0.0 && r <= 1.0 {
 				return r
 			}
-			slog.Warn("invalid OTEL_TRACES_SAMPLER_ARG, using TracesSampleRatio",
+			slog.Warn("invalid OTEL_TRACES_SAMPLER_ARG, defaulting to 1.0",
 				"provided-value", cfg.TracesSamplerArg, "error", err)
 		}
-		return cfg.TracesSampleRatio
+		return 1.0
 	}
 
 	switch cfg.TracesSampler {
@@ -344,7 +323,7 @@ func newSampler(cfg OTelConfig) sdktrace.Sampler {
 	default:
 		if cfg.TracesSampler != "" {
 			slog.Warn("unknown OTEL_TRACES_SAMPLER, falling back to parentbased_traceidratio",
-				"provided-value", cfg.TracesSampler, "fallback-ratio", cfg.TracesSampleRatio)
+				"provided-value", cfg.TracesSampler)
 		}
 		return sdktrace.ParentBased(sdktrace.TraceIDRatioBased(parseRatio()))
 	}
