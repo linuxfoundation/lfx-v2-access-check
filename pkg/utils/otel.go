@@ -127,16 +127,6 @@ func OTelConfigFromEnv() OTelConfig {
 	tracesSampler := strings.ToLower(strings.TrimSpace(os.Getenv("OTEL_TRACES_SAMPLER")))
 	tracesSamplerArg := strings.TrimSpace(os.Getenv("OTEL_TRACES_SAMPLER_ARG"))
 
-	// Support deprecated OTEL_TRACES_SAMPLE_RATIO as fallback when OTEL_TRACES_SAMPLER_ARG is unset.
-	if tracesSamplerArg == "" {
-		legacySampleRatio := strings.TrimSpace(os.Getenv("OTEL_TRACES_SAMPLE_RATIO"))
-		if legacySampleRatio != "" {
-			tracesSamplerArg = legacySampleRatio
-			slog.Debug("using deprecated OTEL_TRACES_SAMPLE_RATIO for sampler argument",
-				"provided-value", legacySampleRatio)
-		}
-	}
-
 	slog.With(
 		"service-name", serviceName,
 		"version", serviceVersion,
