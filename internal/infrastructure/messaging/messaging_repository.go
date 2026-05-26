@@ -137,7 +137,7 @@ func (r *messagingRepository) Request(ctx context.Context, subject string, data 
 	msg, err := r.conn.RequestMsg(natsMsg, timeout)
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
+		span.SetStatus(codes.Error, constants.ErrMsgNATSRequestFailed)
 		return nil, fmt.Errorf("%s: %w", constants.ErrMsgNATSRequestFailed, err)
 	}
 
