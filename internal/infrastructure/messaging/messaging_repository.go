@@ -116,18 +116,18 @@ func (r *messagingRepository) Request(ctx context.Context, subject string, data 
 		return nil, constants.ErrNATSConnNotInit
 	}
 
-	// Use the shorter of the explicit timeout and any deadline already on ctx.
-	// If the deadline is already past, short-circuit rather than passing a
-	// negative duration to RequestMsg.
+	// Clamp timeout to the ctx deadline if it is shorter.
 	if deadline, ok := ctx.Deadline(); ok {
 		if remaining := time.Until(deadline); remaining < timeout {
-			if remaining <= 0 {
-				span.RecordError(context.DeadlineExceeded)
-				span.SetStatus(codes.Error, context.DeadlineExceeded.Error())
-				return nil, context.DeadlineExceeded
-			}
 			timeout = remaining
 		}
+	}
+	// Short-circuit if timeout is zero or negative — either the caller passed
+	// an invalid duration or the ctx deadline was already past.
+	if timeout <= 0 {
+		span.RecordError(context.DeadlineExceeded)
+		span.SetStatus(codes.Error, context.DeadlineExceeded.Error())
+		return nil, context.DeadlineExceeded
 	}
 
 	natsMsg := nats.NewMsg(subject)
