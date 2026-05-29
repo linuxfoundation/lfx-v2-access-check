@@ -180,6 +180,7 @@ make test-coverage
 
 ### Integration Test Files
 - `access_check_test.go` - Tests access check endpoint with JWT validation
+- `my_grants_test.go` - Tests my-grants endpoint with JWT validation
 - `health_test.go` - Tests health check endpoints (/livez, /readyz)
 - `plaintext_test.go` - Tests plaintext response handling
 - `mocks.go` - Mock auth and messaging repositories
