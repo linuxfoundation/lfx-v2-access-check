@@ -55,6 +55,32 @@ func handleHTTPServer(ctx context.Context, cfg *config.Config, endpoints *access
 	var mux goahttp.MiddlewareMuxer
 	{
 		mux = goahttp.NewMuxer()
+		// Register route-tagging middleware inside chi's routing chain so that
+		// http.route is set on the OTel span after chi has matched the route pattern.
+		// The span name is also updated here to avoid high-cardinality names from
+		// using raw URL paths (which contain actual path parameter values).
+		// Must be registered before Mount calls per chi convention.
+		// Reads RoutePattern after next.ServeHTTP because chi populates the pattern
+		// during routing (inside ServeHTTP), not before.
+		mux.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				defer func() {
+					rctx := chi.RouteContext(r.Context())
+					if rctx != nil {
+						routePattern := rctx.RoutePattern()
+						if routePattern != "" {
+							if labeler, ok := otelhttp.LabelerFromContext(r.Context()); ok {
+								labeler.Add(semconv.HTTPRoute(routePattern))
+							}
+							span := trace.SpanFromContext(r.Context())
+							span.SetAttributes(semconv.HTTPRoute(routePattern))
+							span.SetName(r.Method + " " + routePattern)
+						}
+					}
+				}()
+				next.ServeHTTP(w, r)
+			})
+		})
 		if cfg.Debug {
 			// Mount debug endpoints when in debug mode
 			debug.MountPprofHandlers(debug.Adapt(mux))
@@ -66,14 +92,14 @@ func handleHTTPServer(ctx context.Context, cfg *config.Config, endpoints *access
 	var accessSvcServer *accesssvcsvr.Server
 	{
 		eh := errorHandler(ctx)
-		
+
 		// Setup file system for OpenAPI files
 		koDatapath := os.Getenv("KO_DATA_PATH")
 		if koDatapath == "" {
 			koDatapath = "."
 		}
 		koHttpDir := http.Dir(koDatapath)
-		
+
 		accessSvcServer = accesssvcsvr.New(
 			endpoints,
 			mux,
@@ -87,31 +113,6 @@ func handleHTTPServer(ctx context.Context, cfg *config.Config, endpoints *access
 			koHttpDir, // file system for openapi3.yaml
 		)
 	}
-
-	// Register route-tagging middleware inside chi's routing chain so that
-	// http.route is set on the OTel span after chi has matched the route pattern.
-	// The span name is also updated here to avoid high-cardinality names from
-	// using raw URL paths (which contain actual path parameter values).
-	// Must be registered before Mount calls per chi convention.
-	// Reads RoutePattern after next.ServeHTTP because chi populates the pattern
-	// during routing (inside ServeHTTP), not before.
-	mux.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			defer func() {
-				rctx := chi.RouteContext(r.Context())
-				if rctx != nil {
-					routePattern := rctx.RoutePattern()
-					if routePattern != "" {
-						if labeler, ok := otelhttp.LabelerFromContext(r.Context()); ok {
-							labeler.Add(semconv.HTTPRoute(routePattern))
-						}
-						trace.SpanFromContext(r.Context()).SetName(r.Method + " " + routePattern)
-					}
-				}
-			}()
-			next.ServeHTTP(w, r)
-		})
-	})
 
 	// Mount all endpoints
 	accesssvcsvr.Mount(mux, accessSvcServer)
