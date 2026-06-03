@@ -11,16 +11,19 @@ import (
 	"os"
 	"sync"
 
+	"github.com/go-chi/chi/v5"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
+	"go.opentelemetry.io/otel/trace"
+	"goa.design/clue/debug"
+	goahttp "goa.design/goa/v3/http"
+
 	accesssvc "github.com/linuxfoundation/lfx-v2-access-check/gen/access_svc"
 	accesssvcsvr "github.com/linuxfoundation/lfx-v2-access-check/gen/http/access_svc/server"
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/container"
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/infrastructure/config"
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/middleware"
 	"github.com/linuxfoundation/lfx-v2-access-check/pkg/constants"
-
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"goa.design/clue/debug"
-	goahttp "goa.design/goa/v3/http"
 )
 
 // StartServer initializes and starts the access check server following LFX pattern
@@ -49,7 +52,7 @@ func StartServer(ctx context.Context, cfg *config.Config) error {
 // handleHTTPServer follows exact LFX query service pattern for server setup
 func handleHTTPServer(ctx context.Context, cfg *config.Config, endpoints *accesssvc.Endpoints, cont *container.Container) error {
 	// Build the service HTTP request multiplexer
-	var mux goahttp.Muxer
+	var mux goahttp.MiddlewareMuxer
 	{
 		mux = goahttp.NewMuxer()
 		if cfg.Debug {
@@ -84,6 +87,29 @@ func handleHTTPServer(ctx context.Context, cfg *config.Config, endpoints *access
 			koHttpDir, // file system for openapi3.yaml
 		)
 	}
+
+	// Register route-tagging middleware inside chi's routing chain so that
+	// http.route is set on the OTel span after chi has matched the route pattern.
+	// The span name is also updated here to avoid high-cardinality names from
+	// using raw URL paths (which contain actual path parameter values).
+	// Must be registered before Mount calls per chi convention.
+	// Reads RoutePattern after next.ServeHTTP because chi populates the pattern
+	// during routing (inside ServeHTTP), not before.
+	mux.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			next.ServeHTTP(w, r)
+			rctx := chi.RouteContext(r.Context())
+			if rctx != nil {
+				routePattern := rctx.RoutePattern()
+				if routePattern != "" {
+					if labeler, ok := otelhttp.LabelerFromContext(r.Context()); ok {
+						labeler.Add(semconv.HTTPRoute(routePattern))
+					}
+					trace.SpanFromContext(r.Context()).SetName(r.Method + " " + routePattern)
+				}
+			}
+		})
+	})
 
 	// Mount all endpoints
 	accesssvcsvr.Mount(mux, accessSvcServer)
