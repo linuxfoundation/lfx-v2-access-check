@@ -63,14 +63,14 @@ func handleHTTPServer(ctx context.Context, cfg *config.Config, endpoints *access
 	var accessSvcServer *accesssvcsvr.Server
 	{
 		eh := errorHandler(ctx)
-		
+
 		// Setup file system for OpenAPI files
 		koDatapath := os.Getenv("KO_DATA_PATH")
 		if koDatapath == "" {
 			koDatapath = "."
 		}
 		koHttpDir := http.Dir(koDatapath)
-		
+
 		accessSvcServer = accesssvcsvr.New(
 			endpoints,
 			mux,
