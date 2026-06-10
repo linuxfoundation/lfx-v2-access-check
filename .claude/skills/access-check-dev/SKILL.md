@@ -49,7 +49,7 @@ For platform composition, V2 service classes, and cross-service handoffs, use `l
 ## Request context
 
 - Middleware in `internal/middleware/` owns request context setup. Service-layer code must not read HTTP headers directly.
-- Propagate `request_id` and `principal` only through repo helpers and typed context keys (no bare string keys).
+- Propagate `request_id` and `principal` only through repo helpers and the context keys defined in `pkg/constants` (`ClaimsContextKey` for claims, `constants.RequestIDHeader` for the request ID), never ad-hoc string literals.
 - Forward context values into NATS calls only when the receiving subject's contract needs them.
 
 ## My grants
