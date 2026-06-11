@@ -131,6 +131,7 @@ func (r *messagingRepository) Request(ctx context.Context, subject string, data 
 	}
 
 	natsMsg := nats.NewMsg(subject)
+	natsMsg.Header = make(nats.Header)
 	natsMsg.Data = data
 	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(natsMsg.Header))
 
