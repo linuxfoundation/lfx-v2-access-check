@@ -9,6 +9,9 @@ paths:
   - '.claude/**'
 ---
 
+<!-- Copyright The Linux Foundation and each contributor to LFX. -->
+<!-- SPDX-License-Identifier: MIT -->
+
 # Access-check service boundaries
 
 - Do not add resource ownership, KV storage, index publishing, or access mutation publishing in this service. It is a synchronous request/reply consumer over `lfx-v2-fga-sync`.
