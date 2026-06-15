@@ -116,6 +116,13 @@ func (r *messagingRepository) Request(ctx context.Context, subject string, data 
 		return nil, constants.ErrNATSConnNotInit
 	}
 
+	// Short-circuit immediately if the context is already canceled or expired.
+	if err := ctx.Err(); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
 	// Clamp timeout to the ctx deadline if it is shorter.
 	if deadline, ok := ctx.Deadline(); ok {
 		if remaining := time.Until(deadline); remaining < timeout {
@@ -130,8 +137,8 @@ func (r *messagingRepository) Request(ctx context.Context, subject string, data 
 		return nil, context.DeadlineExceeded
 	}
 
+	// nats.NewMsg already initializes Header, so no extra make() needed.
 	natsMsg := nats.NewMsg(subject)
-	natsMsg.Header = make(nats.Header)
 	natsMsg.Data = data
 	otel.GetTextMapPropagator().Inject(ctx, natsHeaderCarrier(natsMsg.Header))
 
