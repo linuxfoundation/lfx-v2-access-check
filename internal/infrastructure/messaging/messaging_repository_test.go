@@ -8,6 +8,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 )
 
 func TestNewMessagingRepository_InvalidURL(t *testing.T) {
@@ -175,6 +180,41 @@ func TestMessagingRepository_ErrorHandling(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestMessagingRepository_Request_CreatesSpan(t *testing.T) {
+	exporter := tracetest.NewInMemoryExporter()
+	tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
+	orig := otel.GetTracerProvider()
+	otel.SetTracerProvider(tp)
+	t.Cleanup(func() { otel.SetTracerProvider(orig) })
+
+	repo := &messagingRepository{conn: nil}
+	_, err := repo.Request(context.Background(), "test.subject", []byte("data"), 1*time.Second)
+	if err == nil {
+		t.Fatal("Expected error with nil connection, got none")
+	}
+
+	spans := exporter.GetSpans()
+	if len(spans) != 1 {
+		t.Fatalf("Expected 1 span, got %d", len(spans))
+	}
+
+	span := spans[0]
+	if span.Name != "nats.request" {
+		t.Errorf("Expected span name 'nats.request', got %q", span.Name)
+	}
+
+	attrMap := make(map[string]string)
+	for _, a := range span.Attributes {
+		attrMap[string(a.Key)] = a.Value.AsString()
+	}
+	if attrMap[string(semconv.MessagingSystemKey)] != "nats" {
+		t.Errorf("Expected messaging.system=nats, got %q", attrMap[string(semconv.MessagingSystemKey)])
+	}
+	if attrMap[string(semconv.MessagingDestinationNameKey)] != "test.subject" {
+		t.Errorf("Expected messaging.destination.name=test.subject, got %q", attrMap[string(semconv.MessagingDestinationNameKey)])
 	}
 }
 
