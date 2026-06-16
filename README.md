@@ -4,13 +4,13 @@
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8?logo=go)
 
-An access check service for the LFX Self-Service platform, providing centralized authorization and permission management across LFX services.
+An HTTP access-check wrapper for the LFX Self-Service platform. It validates Heimdall-issued JWTs, forwards access-check requests to `lfx-v2-fga-sync` over NATS request/reply, and returns the resulting permission decisions.
 
 ## Key Features
 
 - **Bulk Access Checks**: Process multiple resource-action permission checks in a single HTTP request
 - **JWT Authentication**: Secure authentication using Heimdall-issued JWT tokens
-- **Real-time Processing**: Asynchronous message processing via NATS, evaluated by fga-sync
+- **Real-time Processing**: Synchronous NATS request/reply calls evaluated by fga-sync
 - **Cloud Native**: Kubernetes-ready with Helm charts for easy deployment
 
 ## Architecture Overview
@@ -29,7 +29,7 @@ graph TB
     end
 
     subgraph "Platform Infrastructure"
-        N[NATS<br/>Message Queue]
+        N[NATS<br/>Request/Reply]
         FGA[fga-sync<br/>Permission Evaluator]
     end
 
@@ -38,7 +38,7 @@ graph TB
     AC --> AS
     AC --> HE
 
-    AS -->|publish bulk access check| N
+    AS -->|request bulk access check| N
     N -->|evaluate permissions| FGA
     FGA -->|return results| N
     N -->|authorization results| AS
@@ -52,17 +52,17 @@ sequenceDiagram
     participant Traefik as Traefik Gateway
     participant Heimdall as Heimdall Access Decision
     participant AccessCheck as Access Check Service
-    participant NATS as NATS Queue
+    participant NATS as NATS Request/Reply
     participant FGASync as fga-sync
 
     Client->>Traefik: POST /access-check?v=1<br />with Bearer JWT and resource list
-    Traefik->>Heimdall: Validate JWT & authorize
-    Heimdall-->>Traefik: Auth success
+    Traefik->>Heimdall: Authenticate caller and create service JWT
+    Heimdall-->>Traefik: Auth success with JWT
     Traefik->>AccessCheck: Forward authenticated request
 
-    AccessCheck->>AccessCheck: Extract principal from JWT
+    AccessCheck->>AccessCheck: Validate JWT and extract principal
     AccessCheck->>AccessCheck: Build resource-action pairs
-    AccessCheck->>NATS: Publish bulk access check
+    AccessCheck->>NATS: Request bulk access check
 
     NATS->>FGASync: Deliver check request
     FGASync->>FGASync: Evaluate permissions in OpenFGA
@@ -81,9 +81,9 @@ sequenceDiagram
 
 - **Go**: 1.24.0+
 - **Docker**: For containerized deployment
-- **NATS**: Message queue for service communication
-- **fga-sync**: Permission evaluator (processes access check messages from NATS)
-- **Heimdall**: JWT authentication provider
+- **NATS**: Request/reply transport for access-check calls
+- **fga-sync**: Permission evaluator with responders for `lfx.access_check.request` and `lfx.access_check.read_tuples`
+- **Heimdall**: Authentication provider and JWT finalizer
 
 ### Local Development
 
@@ -135,12 +135,16 @@ The service is configured via environment variables:
 | `HOST` | Server host address | `0.0.0.0` |
 | `PORT` | Server port | `8080` |
 | `DEBUG` | Enable debug logging | `false` |
+| `LOG_LEVEL` | Structured log level (`debug`, `info`, `warn`) | `debug` |
+| `LOG_ADD_SOURCE` | Include source file data in structured logs | `false` |
 | `JWKS_URL` | Heimdall JWKS endpoint | `http://heimdall:4457/.well-known/jwks` |
 | `AUDIENCE` | JWT audience | `lfx-v2-access-check` |
 | `ISSUER` | JWT issuer | `heimdall` |
 | `NATS_URL` | NATS server URL | `nats://nats:4222` |
 
 ## API Reference
+
+> **Source of truth:** [`docs/access-check-contract.md`](docs/access-check-contract.md) is authoritative for the HTTP surface (request, response, error mapping, timeout semantics, OpenAPI paths). The snippets below are a convenience overview; if they ever drift from the contract doc, the contract doc wins.
 
 ### Check Access
 
@@ -174,6 +178,17 @@ Content-Type: application/json
 
 Each result is a tab-separated string: `object#relation@user\ttrue` or `object#relation@user\tfalse`. The resource-action pair format is `{type}:{id}#{relation}`.
 
+### My Grants
+
+```
+GET /my-grants?v=1&object_type=project
+Authorization: Bearer <JWT_TOKEN>
+```
+
+Returns direct grants for the caller by object type, via fga-sync's
+`lfx.access_check.read_tuples` request/reply contract. It does not expand
+inherited access from parent resources.
+
 ### Health Endpoints
 
 - `GET /livez` — Liveness probe (basic service health)
@@ -201,7 +216,7 @@ The service serves its own OpenAPI spec at:
 2. **Access Service** (`internal/service/`)
    - Core business logic
    - JWT token validation
-   - NATS message publishing
+   - NATS request/reply communication
    - Response aggregation
 
 3. **Infrastructure Layer** (`internal/infrastructure/`)

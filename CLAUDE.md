@@ -1,12 +1,32 @@
 # LFX Access Check Service
 
+> **Central LFX skills:**
+> - `lfx-skills:lfx` for cross-repo tasks, "where does X live" questions, owner/peer repo routing, and missing checkouts.
+> - `lfx-skills:lfx-platform-architecture` for platform composition, V2 service classes (this service is a proxy/consumer), write/read/access-check flows, NATS/KV ownership, and handoffs across FGA, indexer, query, Heimdall, OpenFGA, Helm, ArgoCD.
+> - The repo-local `access-check-dev` skill auto-attaches on Go, design, `gen/`, `Makefile`, chart, docs, and local Claude guidance paths. It owns repo-local Go conventions and access-check implementation truth (HTTP-over-NATS wrapper, centralized subject constants, unordered-response semantics, my-grants direct tuple reads, and the do-not-publish-index/access-mutation rule).
+> - Local rule `.claude/rules/access-check-boundaries.md` codifies the consumer-service boundary. Keep it aligned with code and chart behavior.
+> - If the central plugin is missing, install with `/plugin marketplace add linuxfoundation/lfx-skills` then `/plugin install lfx-skills@lfx-skills`.
+
 ## Quick Overview
 
 - **Purpose**: Bulk access checks for resource-action pairs
 - **Framework**: Go with Goa v3 (API-first design)
-- **Authentication**: JWT tokens from Heimdall
-- **Message Queue**: NATS for async processing; fga-sync evaluates permissions
+- **Authentication**: Heimdall-issued JWT validation through JWKS
+- **Messaging**: NATS request/reply against `lfx-v2-fga-sync`; this service never publishes index or tuple-mutation messages
 - **Deployment**: Kubernetes with Helm charts
+
+## Agent Guidance
+
+This service is a **consumer wrapper** over the access-check contract owned by `lfx-v2-fga-sync`. It owns its HTTP surface (see `docs/access-check-contract.md`) and nothing else. Tuple semantics, the OpenFGA model, cache behavior, and the canonical request/reply envelope live in `lfx-v2-fga-sync/docs/fga-sync-contract.md`. Deployed values and chart pins live in `lfx-v2-argocd`.
+
+Repo-owned guidance:
+
+- `.claude/skills/access-check-dev/SKILL.md` for repo-local Go, Goa, chart, contract-doc, and access-check implementation truth.
+- `.claude/skills/access-check-dev/references/goa-patterns.md` for access-check Goa methods and local deviations.
+- `.claude/skills/access-check-dev/references/nats-messaging.md` for the subject set and request/reply call shape.
+- `.claude/rules/access-check-boundaries.md` for the consumer-service boundary.
+- `docs/access-check-contract.md` for the authoritative HTTP API contract.
+- `docs/service-helm-chart.md` for this repo's chart interface.
 
 ## Architecture
 
@@ -26,7 +46,7 @@ lfx-v2-access-check/
 │   ├── access-svc.go              # Service design & endpoints
 │   └── types.go                   # Shared type definitions
 │
-├── gen/                           # Generated code (Goa) — do not edit
+├── gen/                           # Generated code (Goa), do not edit
 │   ├── access_svc/                # Service interfaces
 │   └── http/                      # HTTP transport layer
 │
@@ -119,34 +139,10 @@ make help             # Show all available targets
 
 ## API
 
-### Access Check
-
-Version is passed as a query parameter (`?v=1`), not in the request body.
-
-```http
-POST /access-check?v=1
-Authorization: Bearer <JWT_TOKEN>
-Content-Type: application/json
-
-{
-  "requests": ["project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor", "committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer"]
-}
-```
-
-Response (results are unordered — match on `object#relation@user` prefix):
-
-```json
-{
-  "results": ["project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue", "committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer@user:auth0|alice\tfalse"]
-}
-```
-
-### Health Checks
-- `GET /livez` - Liveness probe
-- `GET /readyz` - Readiness probe
-
-### OpenAPI Spec
-Available at `/_access-check/openapi.json`, `openapi.yaml`, `openapi3.json`, `openapi3.yaml`.
+The full API contract (request/response shape, unordered-response caveat,
+error mapping, timeout semantics, health checks, OpenAPI spec paths) lives in
+[`docs/access-check-contract.md`](docs/access-check-contract.md). Read that
+file before changing the HTTP surface.
 
 ## Deployment
 
@@ -161,44 +157,18 @@ docker run -p 8080:8080 ghcr.io/linuxfoundation/lfx-v2-access-check/lfx-access-c
 make helm-install
 ```
 
-## Service Architecture
-
-### Core Components
-
-1. **HTTP Server** (`cmd/lfx-access-check/`)
-   - Goa-based REST API server
-   - JWT authentication middleware
-   - Request ID tracking
-   - Structured logging
-
-2. **Access Service** (`internal/service/`)
-   - Core business logic
-   - JWT token validation
-   - NATS message publishing
-   - Response aggregation
-
-3. **Infrastructure Layer** (`internal/infrastructure/`)
-   - **Auth Repository**: Heimdall JWT validation
-   - **Messaging Repository**: NATS communication
-   - **Config**: Environment-based configuration
-
-4. **Domain Contracts** (`internal/domain/contracts/`)
-   - Shared data structures
-   - JWT claims modeling
-   - Service interfaces
-
 ## Testing
 
 ### Test Structure
 - **Unit Tests**: Service layer, infrastructure, configuration, middleware
-- **Integration Tests**: API endpoints with mock dependencies — no external services required
+- **Integration Tests**: API endpoints with mock dependencies, no external services required
 
 ### Running Tests
 ```bash
 # Unit tests
 make test
 
-# Integration tests (uses mocks — no external services needed)
+# Integration tests (uses mocks, no external services needed)
 go test -v ./test/integration/
 
 # Specific package tests
@@ -210,6 +180,7 @@ make test-coverage
 
 ### Integration Test Files
 - `access_check_test.go` - Tests access check endpoint with JWT validation
+- `my_grants_test.go` - Tests my-grants endpoint with JWT validation
 - `health_test.go` - Tests health check endpoints (/livez, /readyz)
 - `plaintext_test.go` - Tests plaintext response handling
 - `mocks.go` - Mock auth and messaging repositories
@@ -230,10 +201,8 @@ make test-coverage
 ## Monitoring & Observability
 
 ### Logging
-- **Structured Logging**: JSON format with consistent fields
-- **Request Tracking**: Unique request IDs for correlation
-- **Log Levels**: DEBUG, INFO, WARN, ERROR
-- **Context Propagation**: Request context through service layers
+
+Repo-owned logger discipline (slog, OpenTelemetry-aware fields, request-id and principal context propagation, log levels) lives in path-scoped `access-check-dev` guidance.
 
 ### Health Checks
 - **Liveness Probe**: `/livez` - Service basic health
