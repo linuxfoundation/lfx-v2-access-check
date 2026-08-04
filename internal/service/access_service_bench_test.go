@@ -9,12 +9,9 @@ import (
 	"time"
 )
 
-// Simple benchmark for the refactored buildAccessCheckMessage method
-func BenchmarkBuildAccessCheckMessage(b *testing.B) {
-	authRepo := &mockAuthRepository{}
-	messagingRepo := &mockMessagingRepository{}
-	service := NewAccessService(authRepo, messagingRepo)
-
+// BenchmarkBuildMessage measures the NATS message construction path.
+func BenchmarkBuildMessage(b *testing.B) {
+	client := NewAccessCheckClient(&mockMessagingRepository{})
 	principal := "test-user-with-long-name"
 	resources := []string{
 		"repository/project1",
@@ -31,35 +28,28 @@ func BenchmarkBuildAccessCheckMessage(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = service.buildAccessCheckMessage(principal, resources)
+		_ = client.buildMessage(principal, resources)
 	}
 }
 
-// Benchmark for the parseAccessCheckResponse method
-func BenchmarkParseAccessCheckResponse(b *testing.B) {
-	authRepo := &mockAuthRepository{}
-	messagingRepo := &mockMessagingRepository{}
-	service := NewAccessService(authRepo, messagingRepo)
-
-	ctx := context.Background()
+// BenchmarkParseResponse measures the NATS response parsing path.
+func BenchmarkParseResponse(b *testing.B) {
+	client := NewAccessCheckClient(&mockMessagingRepository{})
 	responseData := []byte("true\nfalse\ntrue\nfalse\ntrue\nfalse\ntrue\nfalse\ntrue\nfalse")
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = service.parseAccessCheckResponse(ctx, responseData)
+		_, _ = client.parseResponse(responseData)
 	}
 }
 
-// End-to-end benchmark for the entire performAccessCheck flow (mocked NATS)
-func BenchmarkPerformAccessCheck(b *testing.B) {
-	authRepo := &mockAuthRepository{}
-	messagingRepo := &mockMessagingRepository{
+// BenchmarkCheckAccess measures the full CheckAccess path with a mocked NATS response.
+func BenchmarkCheckAccess(b *testing.B) {
+	client := NewAccessCheckClient(&mockMessagingRepository{
 		requestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
 			return []byte("true\nfalse\ntrue\nfalse\ntrue"), nil
 		},
-	}
-	service := NewAccessService(authRepo, messagingRepo)
-
+	})
 	ctx := context.Background()
 	principal := "test-user-with-long-name"
 	resources := []string{
@@ -72,6 +62,6 @@ func BenchmarkPerformAccessCheck(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = service.performAccessCheck(ctx, principal, resources)
+		_, _ = client.CheckAccess(ctx, principal, resources)
 	}
 }
