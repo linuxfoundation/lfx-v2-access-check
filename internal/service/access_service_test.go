@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	accesssvc "github.com/linuxfoundation/lfx-v2-access-check/gen/access_svc"
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/domain/contracts"
 	"github.com/linuxfoundation/lfx-v2-access-check/pkg/constants"
+	goa "goa.design/goa/v3/pkg"
 	"goa.design/goa/v3/security"
 )
 
@@ -331,3 +333,105 @@ func TestMyGrants_MissingClaims(t *testing.T) {
 		t.Fatal("expected unauthorized error, got nil")
 	}
 }
+
+// ===== Goa error-mapping tests =====
+// These tests assert the *goa.ServiceError.Name field so that regressions in
+// the InternalServerError / ServiceUnavailable mapping cannot pass silently.
+
+func goaErrorName(t *testing.T, err error) string {
+	t.Helper()
+	var svcErr *goa.ServiceError
+	if !errors.As(err, &svcErr) {
+		t.Fatalf("expected *goa.ServiceError, got %T: %v", err, err)
+	}
+	return svcErr.Name
+}
+
+func TestCheckAccess_ErrorMapping(t *testing.T) {
+	natsErr := errors.New("NATS connection failed")
+
+	tests := []struct {
+		name         string
+		clientErr    error
+		wantGoaName  string
+	}{
+		{
+			name:        "ErrUnexpectedResponse → 500 InternalServerError",
+			clientErr:   fmt.Errorf("wrap: %w", constants.ErrUnexpectedResponse),
+			wantGoaName: "InternalServerError",
+		},
+		{
+			name:        "NATS transport error → 503 ServiceUnavailable",
+			clientErr:   natsErr,
+			wantGoaName: "ServiceUnavailable",
+		},
+		{
+			name:        "ErrPrincipalRequired → 401 Unauthorized",
+			clientErr:   constants.ErrPrincipalRequired,
+			wantGoaName: "Unauthorized",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := NewAccessService(&mockAuthRepository{}, &mockMessagingRepository{
+				requestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
+					return nil, tc.clientErr
+				},
+			})
+			_, err := svc.CheckAccess(contextWithClaims("alice"), &accesssvc.CheckAccessPayload{
+				Version:  "1",
+				Requests: []string{"project:abc#viewer"},
+			})
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if got := goaErrorName(t, err); got != tc.wantGoaName {
+				t.Errorf("expected Goa error name %q, got %q", tc.wantGoaName, got)
+			}
+		})
+	}
+}
+
+func TestMyGrants_ErrorMapping(t *testing.T) {
+	natsErr := errors.New("NATS connection failed")
+
+	tests := []struct {
+		name        string
+		clientErr   error
+		wantGoaName string
+	}{
+		{
+			name:        "ErrUnexpectedResponse → 500 InternalServerError",
+			clientErr:   fmt.Errorf("wrap: %w", constants.ErrUnexpectedResponse),
+			wantGoaName: "InternalServerError",
+		},
+		{
+			name:        "NATS transport error → 503 ServiceUnavailable",
+			clientErr:   natsErr,
+			wantGoaName: "ServiceUnavailable",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := NewAccessService(&mockAuthRepository{}, &mockMessagingRepository{
+				requestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
+					return nil, tc.clientErr
+				},
+			})
+			_, err := svc.MyGrants(contextWithClaims("alice"), &accesssvc.MyGrantsPayload{
+				BearerToken: "tok",
+				Version:     "1",
+				ObjectType:  "project",
+			})
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if got := goaErrorName(t, err); got != tc.wantGoaName {
+				t.Errorf("expected Goa error name %q, got %q", tc.wantGoaName, got)
+			}
+		})
+	}
+}
+

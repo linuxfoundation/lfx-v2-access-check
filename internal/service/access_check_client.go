@@ -36,7 +36,13 @@ func (c *AccessCheckClient) HealthCheck(ctx context.Context) error {
 }
 
 // CheckAccess sends resource-action pairs to fga-sync via NATS and returns the
-// newline-delimited result lines in the same order as the request.
+// newline-delimited result lines.
+//
+// Important: result order is NOT guaranteed. fga-sync returns cached hits
+// before fresh OpenFGA checks, so callers must match each line by its
+// "object#relation@user" prefix, not by position. See
+// docs/access-check-contract.md for the full unordered-response caveat.
+//
 // principal must be non-empty; empty resource strings are skipped.
 func (c *AccessCheckClient) CheckAccess(ctx context.Context, principal string, resources []string) ([]string, error) {
 	if principal == "" {
