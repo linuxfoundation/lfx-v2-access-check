@@ -6,7 +6,7 @@ package design
 
 import (
 	"github.com/linuxfoundation/lfx-v2-access-check/pkg/constants"
-	. "goa.design/goa/v3/dsl"
+	. "goa.design/goa/v3/dsl" //nolint:staticcheck // Dot-importing the goa DSL is the standard, idiomatic pattern for goa design files.
 )
 
 // API defines the metadata for the access check service API.

@@ -75,13 +75,14 @@ func TestNewAuthRepository_EmptyValues(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := NewAuthRepository(tt.jwksURL, tt.issuer, tt.audience)
-			if tt.shouldFail && err == nil {
+			switch {
+			case tt.shouldFail && err == nil:
 				t.Errorf("NewAuthRepository should have failed with %s", tt.name)
-			} else if !tt.shouldFail && err != nil {
+			case !tt.shouldFail && err != nil:
 				t.Logf("NewAuthRepository failed with %s (may be expected): %v", tt.name, err)
-			} else if err != nil {
+			case err != nil:
 				t.Logf("Got expected error for %s: %v", tt.name, err)
-			} else {
+			default:
 				t.Logf("NewAuthRepository succeeded with %s", tt.name)
 			}
 		})

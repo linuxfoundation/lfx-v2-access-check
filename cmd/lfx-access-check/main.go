@@ -77,6 +77,7 @@ func main() {
 
 	if err := StartServer(ctx, cfg); err != nil {
 		slog.Error("Failed to start server", "error", err)
+		cancel()
 		os.Exit(1)
 	}
 }
