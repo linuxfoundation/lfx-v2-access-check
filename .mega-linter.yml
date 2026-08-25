@@ -27,8 +27,6 @@ DISABLE_ERRORS_LINTERS:
   - REPOSITORY_TRIVY
   - REPOSITORY_CHECKOV
   - REPOSITORY_DEVSKIM
-  # Go version compatibility issue with MegaLinter Docker container (Go 1.23.9 vs required 1.24)
-  - GO_GOLANGCI_LINT
   # Stuttering warnings handled via filter configuration
   - GO_REVIVE
   # Security vulnerabilities now addressed in Go 1.24.4
@@ -50,7 +48,7 @@ SPELL_CSPELL_PRE_COMMANDS:
   - command: >-
       cp .cspell.json /tmp/cspell.json.orig &&
       curl -sSf
-      https://raw.githubusercontent.com/linuxfoundation/lfx-public-workflows/main/cspell/flagwords.snippet.json
+      https://raw.githubusercontent.com/linuxfoundation/lfx-public-workflows/a93335d2abc2a2e2bb1b7a4cdefbbf15351681ce/cspell/flagwords.json.snippet
       -o /tmp/flagwords.snippet.json &&
       sed -i -e '/"flagWords": \[\]/{r /tmp/flagwords.snippet.json' -e 'd}' .cspell.json
     cwd: "workspace"

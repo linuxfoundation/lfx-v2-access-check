@@ -122,6 +122,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # MegaLinter reports
+# MegaLinter local-run report output.
 megalinter-reports/
 
 # Local Helm chart values files
