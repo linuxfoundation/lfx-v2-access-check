@@ -351,9 +351,9 @@ func TestCheckAccess_ErrorMapping(t *testing.T) {
 	natsErr := errors.New("NATS connection failed")
 
 	tests := []struct {
-		name         string
-		clientErr    error
-		wantGoaName  string
+		name        string
+		clientErr   error
+		wantGoaName string
 	}{
 		{
 			name:        "ErrUnexpectedResponse → 500 InternalServerError",
@@ -434,4 +434,3 @@ func TestMyGrants_ErrorMapping(t *testing.T) {
 		})
 	}
 }
-

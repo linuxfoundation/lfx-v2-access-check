@@ -257,11 +257,9 @@ func TestRequestIDMiddleware_ResponseHeaders(t *testing.T) {
 				if len(responseRequestID) != 36 {
 					t.Errorf("Expected UUID format in response header, got: %s", responseRequestID)
 				}
-			} else {
+			} else if responseRequestID != tc.inputRequestID {
 				// Should use the provided request ID
-				if responseRequestID != tc.inputRequestID {
-					t.Errorf("Expected response header to contain '%s', got '%s'", tc.inputRequestID, responseRequestID)
-				}
+				t.Errorf("Expected response header to contain '%s', got '%s'", tc.inputRequestID, responseRequestID)
 			}
 		})
 	}

@@ -5,7 +5,7 @@
 package design
 
 import (
-	. "goa.design/goa/v3/dsl"
+	. "goa.design/goa/v3/dsl" //nolint:staticcheck // Dot-importing the goa DSL is the standard, idiomatic pattern for goa design files.
 )
 
 // AccessErrorResult defines the error response structure for access check operations.

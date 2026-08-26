@@ -32,6 +32,13 @@ func init() {
 }
 
 func main() {
+	os.Exit(run())
+}
+
+// run contains the service's startup and shutdown logic. It returns the
+// process exit code. Keeping this separate from main lets deferred cleanup
+// (e.g. cancel(), otelShutdown) always run before the process exits.
+func run() int {
 	// Load configuration with CLI flags and environment variables
 	cfg := config.LoadConfig()
 
@@ -46,7 +53,7 @@ func main() {
 	otelShutdown, err := utils.SetupOTelSDKWithConfig(ctx, otelConfig)
 	if err != nil {
 		slog.With(log.ErrKey, err).Error("error setting up OpenTelemetry SDK")
-		os.Exit(1)
+		return 1
 	}
 	// Handle shutdown properly so nothing leaks.
 	defer func() {
@@ -77,6 +84,7 @@ func main() {
 
 	if err := StartServer(ctx, cfg); err != nil {
 		slog.Error("Failed to start server", "error", err)
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
