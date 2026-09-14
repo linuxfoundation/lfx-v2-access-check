@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"strings"
 
 	accesssvc "github.com/linuxfoundation/lfx-v2-access-check/gen/access_svc"
@@ -18,18 +19,33 @@ import (
 )
 
 // AccessService is a thin Goa adapter: it validates JWT tokens, delegates all
-// NATS protocol work to AccessCheckClient, and maps domain errors to Goa HTTP
+// NATS protocol work to an AccessChecker, and maps domain errors to Goa HTTP
 // error types. It owns no message-encoding logic.
 type AccessService struct {
 	authRepo contracts.AuthRepository
-	client   *AccessCheckClient
+	client   contracts.AccessChecker
 }
 
-// NewAccessService creates a new AccessService wired to the given repositories.
-func NewAccessService(authRepo contracts.AuthRepository, messagingRepo contracts.MessagingRepository) *AccessService {
+// NewAccessService creates a new AccessService.
+// client is the domain-level AccessChecker (typically *AccessCheckClient in
+// production, or a mock in tests).
+//
+// Typed-nil pointers (e.g. (*AccessCheckClient)(nil) assigned to the interface)
+// are normalised to an untyped nil so that the Readyz nil guard works correctly
+// regardless of how callers express "no client".
+func NewAccessService(authRepo contracts.AuthRepository, client contracts.AccessChecker) *AccessService {
+	if client != nil {
+		rv := reflect.ValueOf(client)
+		switch rv.Kind() {
+		case reflect.Ptr, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Slice:
+			if rv.IsNil() {
+				client = nil
+			}
+		}
+	}
 	return &AccessService{
 		authRepo: authRepo,
-		client:   NewAccessCheckClient(messagingRepo),
+		client:   client,
 	}
 }
 
@@ -150,7 +166,9 @@ func (s *AccessService) MyGrants(ctx context.Context, p *accesssvc.MyGrantsPaylo
 func (s *AccessService) Readyz(ctx context.Context) ([]byte, error) {
 	var healthIssues []string
 
-	if err := s.client.HealthCheck(ctx); err != nil {
+	if s.client == nil {
+		healthIssues = append(healthIssues, constants.ErrMsgMessagingRepoNotInit)
+	} else if err := s.client.HealthCheck(ctx); err != nil {
 		if errors.Is(err, constants.ErrMessagingRepoNotInit) {
 			healthIssues = append(healthIssues, constants.ErrMsgMessagingRepoNotInit)
 		} else {

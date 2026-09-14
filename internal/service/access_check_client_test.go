@@ -10,21 +10,25 @@ import (
 	"testing"
 	"time"
 
+	"github.com/linuxfoundation/lfx-v2-access-check/internal/mocks"
 	"github.com/linuxfoundation/lfx-v2-access-check/pkg/constants"
 )
 
 // ===== AccessCheckClient unit tests =====
 // These tests exercise the NATS protocol logic in isolation.
 // No Goa types are imported here; only the domain contracts and constants.
+//
+// All messaging-layer control goes through mocks.MockMessagingRepository —
+// the canonical adapter shared across all test packages.
 
 func newTestClient(requestFunc func(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error)) *AccessCheckClient {
-	return NewAccessCheckClient(&mockMessagingRepository{requestFunc: requestFunc})
+	return NewAccessCheckClient(&mocks.MockMessagingRepository{RequestFunc: requestFunc})
 }
 
 // ----- CheckAccess -----
 
 func TestAccessCheckClient_CheckAccess_EmptyPrincipal(t *testing.T) {
-	client := NewAccessCheckClient(&mockMessagingRepository{})
+	client := NewAccessCheckClient(&mocks.MockMessagingRepository{})
 
 	_, err := client.CheckAccess(context.Background(), "", []string{"resource1"})
 	if err == nil {
@@ -36,7 +40,7 @@ func TestAccessCheckClient_CheckAccess_EmptyPrincipal(t *testing.T) {
 }
 
 func TestAccessCheckClient_CheckAccess_EmptyResources(t *testing.T) {
-	client := NewAccessCheckClient(&mockMessagingRepository{})
+	client := NewAccessCheckClient(&mocks.MockMessagingRepository{})
 
 	result, err := client.CheckAccess(context.Background(), "test-user", []string{})
 	if err != nil {
@@ -187,17 +191,34 @@ func TestAccessCheckClient_HealthCheck_NilRepo(t *testing.T) {
 }
 
 func TestAccessCheckClient_HealthCheck_Healthy(t *testing.T) {
-	client := NewAccessCheckClient(&mockMessagingRepository{})
+	client := NewAccessCheckClient(&mocks.MockMessagingRepository{})
 
 	if err := client.HealthCheck(context.Background()); err != nil {
 		t.Errorf("expected healthy, got %v", err)
 	}
 }
 
+func TestAccessCheckClient_HealthCheck_Unhealthy(t *testing.T) {
+	// HealthCheckFunc is now hookable on the canonical mock; this test was
+	// previously impossible without a private duplicate struct.
+	wantErr := errors.New("NATS connection refused")
+	client := NewAccessCheckClient(&mocks.MockMessagingRepository{
+		HealthCheckFunc: func(_ context.Context) error { return wantErr },
+	})
+
+	err := client.HealthCheck(context.Background())
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !errors.Is(err, wantErr) {
+		t.Errorf("expected %v, got %v", wantErr, err)
+	}
+}
+
 // ----- buildMessage -----
 
 func TestAccessCheckClient_BuildMessage(t *testing.T) {
-	client := NewAccessCheckClient(&mockMessagingRepository{})
+	client := NewAccessCheckClient(&mocks.MockMessagingRepository{})
 
 	tests := []struct {
 		name      string
@@ -250,7 +271,7 @@ func TestAccessCheckClient_BuildMessage(t *testing.T) {
 // ----- parseResponse -----
 
 func TestAccessCheckClient_ParseResponse(t *testing.T) {
-	client := NewAccessCheckClient(&mockMessagingRepository{})
+	client := NewAccessCheckClient(&mocks.MockMessagingRepository{})
 
 	tests := []struct {
 		name         string

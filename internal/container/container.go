@@ -44,8 +44,10 @@ func NewContainer(cfg *config.Config) (*Container, error) {
 		return nil, err
 	}
 
-	// Initialize services - Create unified access service
-	accessService := service.NewAccessService(authRepo, messagingRepo)
+	// Initialize services — construct the AccessCheckClient first so the
+	// container owns the concrete wiring, then pass the interface to the service.
+	accessCheckClient := service.NewAccessCheckClient(messagingRepo)
+	accessService := service.NewAccessService(authRepo, accessCheckClient)
 
 	slog.Info("Dependency container initialized successfully")
 	return &Container{

@@ -6,9 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"testing"
-	"time"
 
 	accesssvc "github.com/linuxfoundation/lfx-v2-access-check/gen/access_svc"
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/domain/contracts"
@@ -17,8 +15,7 @@ import (
 	"goa.design/goa/v3/security"
 )
 
-// Mock implementations for testing — shared by service and client tests in this package.
-
+// mockAuthRepository satisfies contracts.AuthRepository.
 type mockAuthRepository struct {
 	validateTokenFunc func(ctx context.Context, token string) (*contracts.HeimdallClaims, error)
 }
@@ -34,26 +31,33 @@ func (m *mockAuthRepository) HealthCheck(_ context.Context) error {
 	return nil
 }
 
-type mockMessagingRepository struct {
-	requestFunc func(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error)
-	closeFunc   func() error
+// mockAccessChecker satisfies contracts.AccessChecker.
+// It works at domain level: callers supply and receive string slices —
+// no NATS byte encoding required.
+type mockAccessChecker struct {
+	checkAccessFunc func(ctx context.Context, principal string, resources []string) ([]string, error)
+	readTuplesFunc  func(ctx context.Context, principal string, objectType string) ([]string, error)
+	healthCheckFunc func(ctx context.Context) error
 }
 
-func (m *mockMessagingRepository) Request(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error) {
-	if m.requestFunc != nil {
-		return m.requestFunc(ctx, subject, data, timeout)
+func (m *mockAccessChecker) CheckAccess(ctx context.Context, principal string, resources []string) ([]string, error) {
+	if m.checkAccessFunc != nil {
+		return m.checkAccessFunc(ctx, principal, resources)
 	}
-	return []byte("project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue"), nil
+	return []string{"project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue"}, nil
 }
 
-func (m *mockMessagingRepository) Close() error {
-	if m.closeFunc != nil {
-		return m.closeFunc()
+func (m *mockAccessChecker) ReadTuples(ctx context.Context, principal string, objectType string) ([]string, error) {
+	if m.readTuplesFunc != nil {
+		return m.readTuplesFunc(ctx, principal, objectType)
 	}
-	return nil
+	return []string{}, nil
 }
 
-func (m *mockMessagingRepository) HealthCheck(_ context.Context) error {
+func (m *mockAccessChecker) HealthCheck(ctx context.Context) error {
+	if m.healthCheckFunc != nil {
+		return m.healthCheckFunc(ctx)
+	}
 	return nil
 }
 
@@ -66,8 +70,8 @@ func contextWithClaims(principal string) context.Context {
 // ===== AccessService unit tests =====
 
 func TestNewAccessService(t *testing.T) {
-	service := NewAccessService(&mockAuthRepository{}, &mockMessagingRepository{})
-	if service == nil {
+	svc := NewAccessService(&mockAuthRepository{}, &mockAccessChecker{})
+	if svc == nil {
 		t.Fatal("NewAccessService returned nil")
 	}
 }
@@ -78,9 +82,9 @@ func TestJWTAuth_Success(t *testing.T) {
 			return &contracts.HeimdallClaims{Principal: "test-user", Email: "test@example.com"}, nil
 		},
 	}
-	service := NewAccessService(authRepo, &mockMessagingRepository{})
+	svc := NewAccessService(authRepo, &mockAccessChecker{})
 
-	resultCtx, err := service.JWTAuth(context.Background(), "Bearer valid-token", &security.JWTScheme{})
+	resultCtx, err := svc.JWTAuth(context.Background(), "Bearer valid-token", &security.JWTScheme{})
 	if err != nil {
 		t.Fatalf("JWTAuth failed: %v", err)
 	}
@@ -103,9 +107,9 @@ func TestJWTAuth_WithoutBearerPrefix(t *testing.T) {
 			return &contracts.HeimdallClaims{Principal: "test-user"}, nil
 		},
 	}
-	service := NewAccessService(authRepo, &mockMessagingRepository{})
+	svc := NewAccessService(authRepo, &mockAccessChecker{})
 
-	_, err := service.JWTAuth(context.Background(), "valid-token", &security.JWTScheme{})
+	_, err := svc.JWTAuth(context.Background(), "valid-token", &security.JWTScheme{})
 	if err != nil {
 		t.Fatalf("JWTAuth failed: %v", err)
 	}
@@ -117,9 +121,9 @@ func TestJWTAuth_InvalidToken(t *testing.T) {
 			return nil, errors.New("invalid token")
 		},
 	}
-	service := NewAccessService(authRepo, &mockMessagingRepository{})
+	svc := NewAccessService(authRepo, &mockAccessChecker{})
 
-	_, err := service.JWTAuth(context.Background(), "invalid-token", &security.JWTScheme{})
+	_, err := svc.JWTAuth(context.Background(), "invalid-token", &security.JWTScheme{})
 	if err == nil {
 		t.Fatal("JWTAuth should have failed with invalid token")
 	}
@@ -127,20 +131,22 @@ func TestJWTAuth_InvalidToken(t *testing.T) {
 }
 
 func TestCheckAccess_Success(t *testing.T) {
-	messagingRepo := &mockMessagingRepository{
-		requestFunc: func(_ context.Context, subject string, _ []byte, _ time.Duration) ([]byte, error) {
-			if subject != constants.AccessCheckSubject {
-				t.Errorf("expected subject %q, got %q", constants.AccessCheckSubject, subject)
+	const wantResult = "project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue"
+	checker := &mockAccessChecker{
+		checkAccessFunc: func(_ context.Context, principal string, resources []string) ([]string, error) {
+			if principal != "test-user" {
+				t.Errorf("unexpected principal: %s", principal)
 			}
-			return []byte("project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice\ttrue"), nil
+			if len(resources) != 2 {
+				t.Errorf("expected 2 resources, got %d", len(resources))
+			}
+			return []string{wantResult}, nil
 		},
 	}
-	service := NewAccessService(&mockAuthRepository{}, messagingRepo)
+	svc := NewAccessService(&mockAuthRepository{}, checker)
+	ctx := contextWithClaims("test-user")
 
-	ctx := context.WithValue(context.Background(), constants.ClaimsContextKey,
-		&contracts.HeimdallClaims{Principal: "test-user", Email: "test@example.com"})
-
-	result, err := service.CheckAccess(ctx, &accesssvc.CheckAccessPayload{
+	result, err := svc.CheckAccess(ctx, &accesssvc.CheckAccessPayload{
 		Version:  "1",
 		Requests: []string{"resource1", "resource2"},
 	})
@@ -150,24 +156,15 @@ func TestCheckAccess_Success(t *testing.T) {
 	if len(result.Results) != 1 {
 		t.Errorf("expected 1 result, got %d", len(result.Results))
 	}
-
-	expectedPrefix := "project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|alice"
-	found := false
-	for _, r := range result.Results {
-		if strings.HasPrefix(r, expectedPrefix) && strings.HasSuffix(r, "\ttrue") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("expected result with prefix %q and suffix \\ttrue, got %v", expectedPrefix, result.Results)
+	if result.Results[0] != wantResult {
+		t.Errorf("expected %q, got %q", wantResult, result.Results[0])
 	}
 }
 
 func TestCheckAccess_MissingClaims(t *testing.T) {
-	service := NewAccessService(&mockAuthRepository{}, &mockMessagingRepository{})
+	svc := NewAccessService(&mockAuthRepository{}, &mockAccessChecker{})
 
-	_, err := service.CheckAccess(context.Background(), &accesssvc.CheckAccessPayload{
+	_, err := svc.CheckAccess(context.Background(), &accesssvc.CheckAccessPayload{
 		Version:  "1",
 		Requests: []string{"resource1"},
 	})
@@ -178,10 +175,10 @@ func TestCheckAccess_MissingClaims(t *testing.T) {
 }
 
 func TestCheckAccess_UnsupportedVersion(t *testing.T) {
-	service := NewAccessService(&mockAuthRepository{}, &mockMessagingRepository{})
+	svc := NewAccessService(&mockAuthRepository{}, &mockAccessChecker{})
 	ctx := contextWithClaims("test-user")
 
-	_, err := service.CheckAccess(ctx, &accesssvc.CheckAccessPayload{
+	_, err := svc.CheckAccess(ctx, &accesssvc.CheckAccessPayload{
 		Version:  "2",
 		Requests: []string{"resource1"},
 	})
@@ -192,10 +189,10 @@ func TestCheckAccess_UnsupportedVersion(t *testing.T) {
 }
 
 func TestCheckAccess_EmptyRequests(t *testing.T) {
-	service := NewAccessService(&mockAuthRepository{}, &mockMessagingRepository{})
+	svc := NewAccessService(&mockAuthRepository{}, &mockAccessChecker{})
 	ctx := contextWithClaims("test-user")
 
-	result, err := service.CheckAccess(ctx, &accesssvc.CheckAccessPayload{
+	result, err := svc.CheckAccess(ctx, &accesssvc.CheckAccessPayload{
 		Version:  "1",
 		Requests: []string{},
 	})
@@ -208,27 +205,27 @@ func TestCheckAccess_EmptyRequests(t *testing.T) {
 }
 
 func TestCheckAccess_NATSFailure(t *testing.T) {
-	messagingRepo := &mockMessagingRepository{
-		requestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
+	checker := &mockAccessChecker{
+		checkAccessFunc: func(_ context.Context, _ string, _ []string) ([]string, error) {
 			return nil, errors.New("NATS connection failed")
 		},
 	}
-	service := NewAccessService(&mockAuthRepository{}, messagingRepo)
+	svc := NewAccessService(&mockAuthRepository{}, checker)
 
-	_, err := service.CheckAccess(contextWithClaims("test-user"), &accesssvc.CheckAccessPayload{
+	_, err := svc.CheckAccess(contextWithClaims("test-user"), &accesssvc.CheckAccessPayload{
 		Version:  "1",
 		Requests: []string{"resource1"},
 	})
 	if err == nil {
-		t.Fatal("CheckAccess should fail on NATS error")
+		t.Fatal("CheckAccess should fail on client error")
 	}
 	t.Logf("Got expected error: %v", err)
 }
 
 func TestReadyz_Success(t *testing.T) {
-	service := NewAccessService(&mockAuthRepository{}, &mockMessagingRepository{})
+	svc := NewAccessService(&mockAuthRepository{}, &mockAccessChecker{})
 
-	result, err := service.Readyz(context.Background())
+	result, err := svc.Readyz(context.Background())
 	if err != nil {
 		t.Fatalf("Readyz failed: %v", err)
 	}
@@ -237,20 +234,48 @@ func TestReadyz_Success(t *testing.T) {
 	}
 }
 
-func TestReadyz_MessagingRepoNil(t *testing.T) {
-	service := NewAccessService(&mockAuthRepository{}, nil)
+func TestReadyz_NilClient(t *testing.T) {
+	svc := NewAccessService(&mockAuthRepository{}, nil)
 
-	_, err := service.Readyz(context.Background())
+	_, err := svc.Readyz(context.Background())
 	if err == nil {
-		t.Fatal("Readyz should fail with nil messaging repo")
+		t.Fatal("Readyz should fail when client is nil")
+	}
+	t.Logf("Got expected error: %v", err)
+}
+
+func TestReadyz_TypedNilClient(t *testing.T) {
+	// A typed-nil pointer stored in the interface must be normalised at
+	// construction time so that Readyz reports not-ready instead of panicking.
+	var typedNil *mockAccessChecker
+	svc := NewAccessService(&mockAuthRepository{}, typedNil)
+
+	_, err := svc.Readyz(context.Background())
+	if err == nil {
+		t.Fatal("Readyz should fail when client is a typed-nil pointer")
+	}
+	t.Logf("Got expected error: %v", err)
+}
+
+func TestReadyz_ClientHealthCheckFails(t *testing.T) {
+	checker := &mockAccessChecker{
+		healthCheckFunc: func(_ context.Context) error {
+			return constants.ErrMessagingRepoNotInit
+		},
+	}
+	svc := NewAccessService(&mockAuthRepository{}, checker)
+
+	_, err := svc.Readyz(context.Background())
+	if err == nil {
+		t.Fatal("Readyz should fail when client health check fails")
 	}
 	t.Logf("Got expected error: %v", err)
 }
 
 func TestLivez(t *testing.T) {
-	service := NewAccessService(&mockAuthRepository{}, &mockMessagingRepository{})
+	svc := NewAccessService(&mockAuthRepository{}, &mockAccessChecker{})
 
-	result, err := service.Livez(context.Background())
+	result, err := svc.Livez(context.Background())
 	if err != nil {
 		t.Fatalf("Livez failed: %v", err)
 	}
@@ -261,15 +286,22 @@ func TestLivez(t *testing.T) {
 
 func TestMyGrants_Success(t *testing.T) {
 	const principal = "auth0|testuser"
-	messagingRepo := &mockMessagingRepository{
-		requestFunc: func(_ context.Context, subject string, _ []byte, _ time.Duration) ([]byte, error) {
-			if subject != constants.ReadTuplesSubject {
-				t.Errorf("unexpected NATS subject: %s", subject)
+	wantGrants := []string{
+		"project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|testuser",
+		"project:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer@user:auth0|testuser",
+	}
+	checker := &mockAccessChecker{
+		readTuplesFunc: func(_ context.Context, p string, objectType string) ([]string, error) {
+			if p != principal {
+				t.Errorf("unexpected principal: %s", p)
 			}
-			return []byte(`{"results":["project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor@user:auth0|testuser","project:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer@user:auth0|testuser"]}`), nil
+			if objectType != "project" {
+				t.Errorf("unexpected object type: %s", objectType)
+			}
+			return wantGrants, nil
 		},
 	}
-	svc := NewAccessService(&mockAuthRepository{}, messagingRepo)
+	svc := NewAccessService(&mockAuthRepository{}, checker)
 
 	result, err := svc.MyGrants(contextWithClaims(principal), &accesssvc.MyGrantsPayload{
 		BearerToken: "tok",
@@ -285,12 +317,12 @@ func TestMyGrants_Success(t *testing.T) {
 }
 
 func TestMyGrants_EmptyResults(t *testing.T) {
-	messagingRepo := &mockMessagingRepository{
-		requestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
-			return []byte(`{"results":[]}`), nil
+	checker := &mockAccessChecker{
+		readTuplesFunc: func(_ context.Context, _ string, _ string) ([]string, error) {
+			return []string{}, nil
 		},
 	}
-	svc := NewAccessService(&mockAuthRepository{}, messagingRepo)
+	svc := NewAccessService(&mockAuthRepository{}, checker)
 
 	result, err := svc.MyGrants(contextWithClaims("auth0|user"), &accesssvc.MyGrantsPayload{
 		BearerToken: "tok",
@@ -309,7 +341,7 @@ func TestMyGrants_EmptyResults(t *testing.T) {
 }
 
 func TestMyGrants_UnsupportedVersion(t *testing.T) {
-	svc := NewAccessService(&mockAuthRepository{}, &mockMessagingRepository{})
+	svc := NewAccessService(&mockAuthRepository{}, &mockAccessChecker{})
 
 	_, err := svc.MyGrants(contextWithClaims("auth0|user"), &accesssvc.MyGrantsPayload{
 		BearerToken: "tok",
@@ -322,7 +354,7 @@ func TestMyGrants_UnsupportedVersion(t *testing.T) {
 }
 
 func TestMyGrants_MissingClaims(t *testing.T) {
-	svc := NewAccessService(&mockAuthRepository{}, &mockMessagingRepository{})
+	svc := NewAccessService(&mockAuthRepository{}, &mockAccessChecker{})
 
 	_, err := svc.MyGrants(context.Background(), &accesssvc.MyGrantsPayload{
 		BearerToken: "tok",
@@ -374,11 +406,13 @@ func TestCheckAccess_ErrorMapping(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			svc := NewAccessService(&mockAuthRepository{}, &mockMessagingRepository{
-				requestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
+			checker := &mockAccessChecker{
+				checkAccessFunc: func(_ context.Context, _ string, _ []string) ([]string, error) {
 					return nil, tc.clientErr
 				},
-			})
+			}
+			svc := NewAccessService(&mockAuthRepository{}, checker)
+
 			_, err := svc.CheckAccess(contextWithClaims("alice"), &accesssvc.CheckAccessPayload{
 				Version:  "1",
 				Requests: []string{"project:abc#viewer"},
@@ -415,11 +449,13 @@ func TestMyGrants_ErrorMapping(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			svc := NewAccessService(&mockAuthRepository{}, &mockMessagingRepository{
-				requestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
+			checker := &mockAccessChecker{
+				readTuplesFunc: func(_ context.Context, _ string, _ string) ([]string, error) {
 					return nil, tc.clientErr
 				},
-			})
+			}
+			svc := NewAccessService(&mockAuthRepository{}, checker)
+
 			_, err := svc.MyGrants(contextWithClaims("alice"), &accesssvc.MyGrantsPayload{
 				BearerToken: "tok",
 				Version:     "1",
