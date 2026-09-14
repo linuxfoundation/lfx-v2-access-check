@@ -129,6 +129,11 @@ jobs:
       actions: read
       id-token: write
       packages: write
+      # contents: read is required so the SLSA generator's detect-env job can
+      # call the GitHub API to verify the repository is public. Without it the
+      # token only gets Metadata: read and the generator halts with
+      # "Repository is private".
+      contents: read
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
     with:
       image: ${{ needs.release-helm-chart.outputs.image_name }}
