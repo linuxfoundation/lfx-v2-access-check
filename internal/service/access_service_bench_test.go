@@ -7,11 +7,13 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/linuxfoundation/lfx-v2-access-check/internal/mocks"
 )
 
 // BenchmarkBuildMessage measures the NATS message construction path.
 func BenchmarkBuildMessage(b *testing.B) {
-	client := NewAccessCheckClient(&mockMessagingRepository{})
+	client := NewAccessCheckClient(&mocks.MockMessagingRepository{})
 	principal := "test-user-with-long-name"
 	resources := []string{
 		"repository/project1",
@@ -34,7 +36,7 @@ func BenchmarkBuildMessage(b *testing.B) {
 
 // BenchmarkParseResponse measures the NATS response parsing path.
 func BenchmarkParseResponse(b *testing.B) {
-	client := NewAccessCheckClient(&mockMessagingRepository{})
+	client := NewAccessCheckClient(&mocks.MockMessagingRepository{})
 	responseData := []byte("true\nfalse\ntrue\nfalse\ntrue\nfalse\ntrue\nfalse\ntrue\nfalse")
 
 	b.ResetTimer()
@@ -45,8 +47,8 @@ func BenchmarkParseResponse(b *testing.B) {
 
 // BenchmarkCheckAccess measures the full CheckAccess path with a mocked NATS response.
 func BenchmarkCheckAccess(b *testing.B) {
-	client := NewAccessCheckClient(&mockMessagingRepository{
-		requestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
+	client := NewAccessCheckClient(&mocks.MockMessagingRepository{
+		RequestFunc: func(_ context.Context, _ string, _ []byte, _ time.Duration) ([]byte, error) {
 			return []byte("true\nfalse\ntrue\nfalse\ntrue"), nil
 		},
 	})

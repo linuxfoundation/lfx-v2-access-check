@@ -14,6 +14,9 @@ import (
 	"github.com/linuxfoundation/lfx-v2-access-check/pkg/constants"
 )
 
+// Verify interface compliance at compile time.
+var _ contracts.AccessChecker = (*AccessCheckClient)(nil)
+
 // AccessCheckClient handles the NATS protocol for access checking and tuple reading.
 // It owns the message build/parse logic and the two NATS subjects, with no knowledge
 // of HTTP, Goa types, or authentication.

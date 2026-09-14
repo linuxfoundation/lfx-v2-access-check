@@ -40,10 +40,14 @@ func (m *MockAuthRepository) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
-// MockMessagingRepository provides a mock implementation of MessagingRepository
+// MockMessagingRepository provides a mock implementation of MessagingRepository.
+// All three interface methods are hookable via exported Func fields so that any
+// test package can exercise every code path — including HealthCheck failure —
+// without defining its own duplicate mock.
 type MockMessagingRepository struct {
-	RequestFunc func(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error)
-	CloseFunc   func() error
+	RequestFunc     func(ctx context.Context, subject string, data []byte, timeout time.Duration) ([]byte, error)
+	CloseFunc       func() error
+	HealthCheckFunc func(ctx context.Context) error
 }
 
 // NewMockMessagingRepository creates a new mock messaging repository
@@ -63,6 +67,14 @@ func (m *MockMessagingRepository) Request(ctx context.Context, subject string, d
 func (m *MockMessagingRepository) Close() error {
 	if m.CloseFunc != nil {
 		return m.CloseFunc()
+	}
+	return nil
+}
+
+// HealthCheck mocks health check
+func (m *MockMessagingRepository) HealthCheck(ctx context.Context) error {
+	if m.HealthCheckFunc != nil {
+		return m.HealthCheckFunc(ctx)
 	}
 	return nil
 }

@@ -24,7 +24,10 @@ func newTestServer(t *testing.T, messagingRepo interface {
 	HealthCheck(ctx context.Context) error
 }) *httptest.Server {
 	t.Helper()
-	accessService := service.NewAccessService(&MockAuthRepository{}, messagingRepo)
+	// Wrap the raw messaging repo in AccessCheckClient so that NewAccessService
+	// receives a contracts.AccessChecker (the domain-level seam).
+	accessCheckClient := service.NewAccessCheckClient(messagingRepo)
+	accessService := service.NewAccessService(&MockAuthRepository{}, accessCheckClient)
 	endpoints := accesssvc.NewEndpoints(accessService)
 	mux := goahttp.NewMuxer()
 	svr := accesssvcsvr.New(endpoints, mux,
