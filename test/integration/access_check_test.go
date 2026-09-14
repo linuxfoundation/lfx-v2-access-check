@@ -19,10 +19,12 @@ import (
 )
 
 func TestAccessCheckEndpoint(t *testing.T) {
-	// Create test service with mock dependencies
+	// Create test service with mock dependencies.
+	// NewAccessCheckClient wraps the messaging repo; the resulting AccessChecker
+	// is passed to NewAccessService so the seam sits at the domain level.
 	mockAuthRepo := &MockAuthRepository{}
 	mockMessagingRepo := &MockMessagingRepository{}
-	accessService := service.NewAccessService(mockAuthRepo, mockMessagingRepo)
+	accessService := service.NewAccessService(mockAuthRepo, service.NewAccessCheckClient(mockMessagingRepo))
 
 	// Create endpoints
 	endpoints := accesssvc.NewEndpoints(accessService)

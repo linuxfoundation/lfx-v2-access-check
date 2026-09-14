@@ -18,18 +18,20 @@ import (
 )
 
 // AccessService is a thin Goa adapter: it validates JWT tokens, delegates all
-// NATS protocol work to AccessCheckClient, and maps domain errors to Goa HTTP
+// NATS protocol work to an AccessChecker, and maps domain errors to Goa HTTP
 // error types. It owns no message-encoding logic.
 type AccessService struct {
 	authRepo contracts.AuthRepository
-	client   *AccessCheckClient
+	client   contracts.AccessChecker
 }
 
-// NewAccessService creates a new AccessService wired to the given repositories.
-func NewAccessService(authRepo contracts.AuthRepository, messagingRepo contracts.MessagingRepository) *AccessService {
+// NewAccessService creates a new AccessService.
+// client is the domain-level AccessChecker (typically *AccessCheckClient in
+// production, or a mock in tests).
+func NewAccessService(authRepo contracts.AuthRepository, client contracts.AccessChecker) *AccessService {
 	return &AccessService{
 		authRepo: authRepo,
-		client:   NewAccessCheckClient(messagingRepo),
+		client:   client,
 	}
 }
 
