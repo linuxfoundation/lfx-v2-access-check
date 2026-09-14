@@ -46,10 +46,10 @@ var (
 	ErrReadingTuplesFailed = errors.New("reading tuples failed")
 
 	// NATS connection state errors — returned by the messaging repository health check.
-	ErrNATSConnNotInit  = errors.New("NATS connection not initialized")
+	ErrNATSConnNotInit   = errors.New("NATS connection not initialized")
 	ErrNATSConnNotActive = errors.New("NATS connection is not active")
-	ErrNATSConnClosed   = errors.New("NATS connection is closed")
-	ErrNATSConnDraining = errors.New("NATS connection is draining")
+	ErrNATSConnClosed    = errors.New("NATS connection is closed")
+	ErrNATSConnDraining  = errors.New("NATS connection is draining")
 
 	// ErrMessagingRepoNotInit uses the ErrMsg constant so the health-check
 	// plaintext and the sentinel error share a single source of truth.
