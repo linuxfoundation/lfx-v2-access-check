@@ -152,7 +152,9 @@ func (s *AccessService) MyGrants(ctx context.Context, p *accesssvc.MyGrantsPaylo
 func (s *AccessService) Readyz(ctx context.Context) ([]byte, error) {
 	var healthIssues []string
 
-	if err := s.client.HealthCheck(ctx); err != nil {
+	if s.client == nil {
+		healthIssues = append(healthIssues, constants.ErrMsgMessagingRepoNotInit)
+	} else if err := s.client.HealthCheck(ctx); err != nil {
 		if errors.Is(err, constants.ErrMessagingRepoNotInit) {
 			healthIssues = append(healthIssues, constants.ErrMsgMessagingRepoNotInit)
 		} else {

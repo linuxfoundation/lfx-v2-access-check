@@ -15,10 +15,6 @@ import (
 	"goa.design/goa/v3/security"
 )
 
-// Mock implementations for testing — shared by service tests in this package.
-// mockMessagingRepository lives in access_check_client_test.go; it is only
-// needed by tests that exercise AccessCheckClient directly.
-
 // mockAuthRepository satisfies contracts.AuthRepository.
 type mockAuthRepository struct {
 	validateTokenFunc func(ctx context.Context, token string) (*contracts.HeimdallClaims, error)
@@ -236,6 +232,16 @@ func TestReadyz_Success(t *testing.T) {
 	if string(result) != "OK" {
 		t.Errorf("expected 'OK', got '%s'", string(result))
 	}
+}
+
+func TestReadyz_NilClient(t *testing.T) {
+	svc := NewAccessService(&mockAuthRepository{}, nil)
+
+	_, err := svc.Readyz(context.Background())
+	if err == nil {
+		t.Fatal("Readyz should fail when client is nil")
+	}
+	t.Logf("Got expected error: %v", err)
 }
 
 func TestReadyz_ClientHealthCheckFails(t *testing.T) {
