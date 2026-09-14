@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"reflect"
 	"strings"
 
 	accesssvc "github.com/linuxfoundation/lfx-v2-access-check/gen/access_svc"
@@ -28,7 +29,20 @@ type AccessService struct {
 // NewAccessService creates a new AccessService.
 // client is the domain-level AccessChecker (typically *AccessCheckClient in
 // production, or a mock in tests).
+//
+// Typed-nil pointers (e.g. (*AccessCheckClient)(nil) assigned to the interface)
+// are normalised to an untyped nil so that the Readyz nil guard works correctly
+// regardless of how callers express "no client".
 func NewAccessService(authRepo contracts.AuthRepository, client contracts.AccessChecker) *AccessService {
+	if client != nil {
+		rv := reflect.ValueOf(client)
+		switch rv.Kind() {
+		case reflect.Ptr, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Slice:
+			if rv.IsNil() {
+				client = nil
+			}
+		}
+	}
 	return &AccessService{
 		authRepo: authRepo,
 		client:   client,

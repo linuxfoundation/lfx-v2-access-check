@@ -244,6 +244,19 @@ func TestReadyz_NilClient(t *testing.T) {
 	t.Logf("Got expected error: %v", err)
 }
 
+func TestReadyz_TypedNilClient(t *testing.T) {
+	// A typed-nil pointer stored in the interface must be normalised at
+	// construction time so that Readyz reports not-ready instead of panicking.
+	var typedNil *mockAccessChecker
+	svc := NewAccessService(&mockAuthRepository{}, typedNil)
+
+	_, err := svc.Readyz(context.Background())
+	if err == nil {
+		t.Fatal("Readyz should fail when client is a typed-nil pointer")
+	}
+	t.Logf("Got expected error: %v", err)
+}
+
 func TestReadyz_ClientHealthCheckFails(t *testing.T) {
 	checker := &mockAccessChecker{
 		healthCheckFunc: func(_ context.Context) error {
