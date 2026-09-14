@@ -29,9 +29,6 @@ func TestConfig_NewInstance(t *testing.T) {
 		NATSUrl:  "nats://nats:4222",
 	}
 
-	if config == nil {
-		t.Error("Config should not be nil")
-	}
 	if config.Host != "0.0.0.0" {
 		t.Errorf("Expected Host to be '0.0.0.0', got '%s'", config.Host)
 	}

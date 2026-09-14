@@ -30,6 +30,9 @@ func RequestIDMiddleware() func(http.Handler) http.Handler {
 			w.Header().Set(constants.RequestIDHeader, requestID)
 
 			// Add request ID to context
+			//nolint:staticcheck // Using the string constant (not ContextKey) here is
+			// intentional for compatibility with existing consumers/tests that read
+			// this value back via the same string key.
 			ctx := context.WithValue(r.Context(), constants.RequestIDHeader, requestID)
 
 			// Log the request ID using the context-aware logger
