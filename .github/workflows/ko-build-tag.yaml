@@ -139,6 +139,11 @@ jobs:
       image: ${{ needs.release-helm-chart.outputs.image_name }}
       digest: ${{ needs.release-helm-chart.outputs.digest }}
       registry-username: ${{ github.actor }}
+      # compile-generator: true is required when the workflow is pinned by SHA
+      # instead of a tag. Without it, generate-builder.sh tries to resolve the
+      # SHA as a release tag (expects refs/tags/vX.Y.Z) and exits 2, leaving
+      # no binary for the provenance step.
+      compile-generator: true
     secrets:
       registry-password: ${{ secrets.GITHUB_TOKEN }}
 
