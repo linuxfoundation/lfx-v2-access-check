@@ -89,9 +89,4 @@ func InitStructureLogConfig() {
 	// Wrap with contextHandler to support context-based attributes
 	logger := contextHandler{otelHandler}
 	slog.SetDefault(slog.New(logger))
-
-	slog.Info("log config applied",
-		"logLevel", os.Getenv("LOG_LEVEL"),
-		"addSource", logOptions.AddSource,
-	)
 }
