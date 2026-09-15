@@ -65,44 +65,21 @@ func InitStructureLogConfig() {
 	logOptions := &slog.HandlerOptions{}
 	var h slog.Handler
 
-	configurations := map[string]func(){
-		"options-logLevel": func() {
-			logLevel := os.Getenv("LOG_LEVEL")
-			slog.Info("log config",
-				"logLevel", logLevel,
-			)
-			switch logLevel {
-			case debug:
-				logOptions.Level = slog.LevelDebug
-			case warn:
-				logOptions.Level = slog.LevelWarn
-			case info:
-				logOptions.Level = slog.LevelInfo
-			default:
-				logOptions.Level = logLevelDefault
-			}
-		},
-		"options-addSource": func() {
-
-			addSourceBool := false
-
-			addSource := os.Getenv("LOG_ADD_SOURCE")
-			if addSource == "true" || addSource == "false" {
-				addSourceBool = addSource == "true"
-			}
-			slog.Info("log config",
-				"LOG_ADD_SOURCE", addSourceBool,
-			)
-			logOptions.AddSource = addSourceBool
-		},
+	logLevel := os.Getenv("LOG_LEVEL")
+	switch logLevel {
+	case debug:
+		logOptions.Level = slog.LevelDebug
+	case warn:
+		logOptions.Level = slog.LevelWarn
+	case info:
+		logOptions.Level = slog.LevelInfo
+	default:
+		logOptions.Level = logLevelDefault
 	}
 
-	for name, f := range configurations {
-		slog.Info("setting logging configuration",
-			"name", name,
-		)
-		f()
-	}
+	addSource := os.Getenv("LOG_ADD_SOURCE")
+	logOptions.AddSource = addSource == "true"
+
 	h = slog.NewJSONHandler(os.Stdout, logOptions)
 	log.SetFlags(log.Llongfile)
 
