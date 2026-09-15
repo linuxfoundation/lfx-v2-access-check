@@ -89,12 +89,6 @@ func (c *Config) ServerAddress() string {
 	return c.Host + ":" + c.Port
 }
 
-// HostPortAddress provides traditional Host:Port address (kept for backward compatibility)
-// This always returns Host:Port regardless of wildcard logic
-func (c *Config) HostPortAddress() string {
-	return c.Host + ":" + c.Port
-}
-
 // getEnvOrDefault returns environment variable value or default if not set
 func getEnvOrDefault(envKey, defaultValue string) string {
 	if value := os.Getenv(envKey); value != "" {
