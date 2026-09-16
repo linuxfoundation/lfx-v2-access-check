@@ -35,8 +35,6 @@ go.work
 # IDE and editor files
 .vscode/
 .idea/
-.cursor/
-.claude/
 *.swp
 *.swo
 *~
