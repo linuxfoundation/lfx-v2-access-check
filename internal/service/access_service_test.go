@@ -321,6 +321,27 @@ func TestMyGrants_MissingClaims(t *testing.T) {
 	}
 }
 
+func TestMyGrants_EmptyPrincipal(t *testing.T) {
+	// claims present in context but Principal is empty — exercises HeimdallClaims.Validate.
+	svc := NewAccessService(&mocks.MockAuthRepository{}, &mocks.MockAccessChecker{})
+
+	_, err := svc.MyGrants(contextWithClaims(""), &accesssvc.MyGrantsPayload{
+		BearerToken: "tok",
+		Version:     "1",
+		ObjectType:  "project",
+	})
+	if err == nil {
+		t.Fatal("expected unauthorized error for empty principal, got nil")
+	}
+	goaErr, ok := err.(*goa.ServiceError)
+	if !ok {
+		t.Fatalf("expected *goa.ServiceError, got %T", err)
+	}
+	if goaErr.Name != "Unauthorized" {
+		t.Errorf("expected Unauthorized error, got %q", goaErr.Name)
+	}
+}
+
 // ===== Goa error-mapping tests =====
 // These tests assert the *goa.ServiceError.Name field so that regressions in
 // the InternalServerError / ServiceUnavailable mapping cannot pass silently.

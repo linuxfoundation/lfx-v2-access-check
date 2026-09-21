@@ -150,9 +150,8 @@ func (s *AccessService) MyGrants(ctx context.Context, p *accesssvc.MyGrantsPaylo
 		return nil, err
 	}
 
-	if claims.Principal == "" {
-		slog.ErrorContext(ctx, "Principal is required for my-grants")
-		return nil, accesssvc.MakeUnauthorized(constants.ErrPrincipalRequired)
+	if err := claims.Validate(ctx); err != nil {
+		return nil, accesssvc.MakeUnauthorized(err)
 	}
 
 	grants, err := s.client.ReadTuples(ctx, claims.Principal, p.ObjectType)
