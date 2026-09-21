@@ -72,6 +72,24 @@ func requireAPIVersion(version string) error {
 	return nil
 }
 
+// validateRequest is the shared handler preamble: it extracts claims from the
+// context and validates the API version. Both steps are identical across every
+// endpoint, so they live here once instead of being copied into each handler.
+// Handler-specific guards (e.g. the MyGrants principal-empty check) run after
+// this call returns successfully.
+func validateRequest(ctx context.Context, version string) (*contracts.HeimdallClaims, error) {
+	claims, ok := claimsFromContext(ctx)
+	if !ok {
+		slog.ErrorContext(ctx, "Failed to get claims from context")
+		return nil, accesssvc.MakeUnauthorized(constants.ErrInvalidAuthContext)
+	}
+	if err := requireAPIVersion(version); err != nil {
+		slog.WarnContext(ctx, "Unsupported API version", "version", version)
+		return nil, accesssvc.MakeBadRequest(err)
+	}
+	return claims, nil
+}
+
 // ===== GOA Authentication Interface =====
 
 // JWTAuth implements the authorization logic for the JWT security scheme.
@@ -98,15 +116,9 @@ func (s *AccessService) JWTAuth(ctx context.Context, token string, _ *security.J
 
 // CheckAccess validates the request and delegates to AccessCheckClient.
 func (s *AccessService) CheckAccess(ctx context.Context, p *accesssvc.CheckAccessPayload) (*accesssvc.CheckAccessResult, error) {
-	claims, ok := claimsFromContext(ctx)
-	if !ok {
-		slog.ErrorContext(ctx, "Failed to get claims from context")
-		return nil, accesssvc.MakeUnauthorized(constants.ErrInvalidAuthContext)
-	}
-
-	if err := requireAPIVersion(p.Version); err != nil {
-		slog.WarnContext(ctx, "Unsupported API version", "version", p.Version)
-		return nil, accesssvc.MakeBadRequest(err)
+	claims, err := validateRequest(ctx, p.Version)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(p.Requests) == 0 {
@@ -133,20 +145,13 @@ func (s *AccessService) CheckAccess(ctx context.Context, p *accesssvc.CheckAcces
 
 // MyGrants validates the request and delegates to AccessCheckClient.
 func (s *AccessService) MyGrants(ctx context.Context, p *accesssvc.MyGrantsPayload) (*accesssvc.MyGrantsResult, error) {
-	claims, ok := claimsFromContext(ctx)
-	if !ok {
-		slog.ErrorContext(ctx, "Failed to get claims from context")
-		return nil, accesssvc.MakeUnauthorized(constants.ErrInvalidAuthContext)
+	claims, err := validateRequest(ctx, p.Version)
+	if err != nil {
+		return nil, err
 	}
 
-	if err := requireAPIVersion(p.Version); err != nil {
-		slog.WarnContext(ctx, "Unsupported API version", "version", p.Version)
-		return nil, accesssvc.MakeBadRequest(err)
-	}
-
-	if claims.Principal == "" {
-		slog.ErrorContext(ctx, "Principal is required for my-grants")
-		return nil, accesssvc.MakeUnauthorized(constants.ErrPrincipalRequired)
+	if err := claims.Validate(ctx); err != nil {
+		return nil, accesssvc.MakeUnauthorized(err)
 	}
 
 	grants, err := s.client.ReadTuples(ctx, claims.Principal, p.ObjectType)
