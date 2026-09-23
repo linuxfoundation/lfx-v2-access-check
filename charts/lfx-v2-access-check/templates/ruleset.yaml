@@ -7,6 +7,8 @@ kind: RuleSet
 metadata:
   name: lfx-v2-access-check
   namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
 spec:
   rules:
     - id: "rule:lfx-v2-access-check:access-check"
