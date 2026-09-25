@@ -1,0 +1,46 @@
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+{{- if .Values.traefik.enabled }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: lfx-v2-access-check
+  namespace: {{ .Release.Namespace }}
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: {{ .Values.traefik.gateway.name }}
+      namespace: {{ .Values.traefik.gateway.namespace }}
+  hostnames:
+    - "lfx-api.{{ .Values.lfx.domain }}"
+  rules:
+    - matches:
+        - path:
+            type: Exact
+            value: /access-check
+        - path:
+            type: PathPrefix
+            value: /access-check/
+        - path:
+            type: PathPrefix
+            value: /_access-check/
+        - path:
+            type: Exact
+            value: /my-grants
+      {{- if .Values.heimdall.enabled }}
+      filters:
+        - type: ExtensionRef
+          extensionRef:
+            group: traefik.io
+            kind: Middleware
+            name: heimdall
+      {{- end }}
+      backendRefs:
+        - group: ""
+          kind: Service
+          name: lfx-v2-access-check
+          port: {{ .Values.app.port | int }}
+          weight: 1
+{{- end }}

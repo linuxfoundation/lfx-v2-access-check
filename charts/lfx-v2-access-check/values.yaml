@@ -1,0 +1,131 @@
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+---
+replicaCount: 1
+
+# annotations are additional annotations applied to the Deployment itself.
+# Example:
+#   reloader.stakater.com/auto: "true"
+annotations: {}
+
+# podAnnotations are additional annotations applied to the pod template.
+# Example:
+#   prometheus.io/scrape: "true"
+#   prometheus.io/port: "8080"
+podAnnotations: {}
+
+# podLabels are additional labels applied to the pod template.
+# Example:
+#   team: platform
+#   environment: production
+podLabels: {}
+
+# podDisruptionBudget configures a PodDisruptionBudget for the deployment.
+# Only one of minAvailable or maxUnavailable may be set (not both).
+podDisruptionBudget:
+  enabled: false
+  # minAvailable: 1
+  # maxUnavailable: 1
+
+# topologySpreadConstraints controls how pods are spread across nodes/zones.
+# Empty by default (no constraints). Example:
+#   - maxSkew: 1
+#     topologyKey: kubernetes.io/hostname
+#     whenUnsatisfiable: DoNotSchedule
+#     labelSelector:
+#       matchLabels:
+#         app: lfx-v2-access-check
+topologySpreadConstraints: []
+
+lfx:
+  domain: k8s.orb.local
+
+# Override from CLI/CI: --set image.tag=<git-sha>, etc.
+image:
+  repository: ghcr.io/linuxfoundation/lfx-v2-access-check/lfx-access-check
+  pullPolicy: IfNotPresent
+  # Container image tag, Defaults to appVersion from Chart.yaml if not set
+  tag: ""
+
+# Application configuration
+app:
+  # Server configuration
+  port: 8080
+  host: "*"
+  debug: false
+
+  # JWT/Auth configuration
+  audience: "lfx-v2-access-check"
+  issuer: "heimdall"
+
+  # Resource limits and requests
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  # extraEnv allows injecting additional environment variables into the container.
+  # Supports both simple key-value pairs and Kubernetes field references.
+  # These are rendered BEFORE OTEL variables, allowing use in OTEL configuration.
+  extraEnv: []
+
+  # otel is the configuration for OpenTelemetry tracing
+  otel:
+    # serviceName is the service name for OpenTelemetry resource identification
+    # (default: "lfx-v2-access-check")
+    serviceName: ""
+    # serviceVersion is the service version for OpenTelemetry resource identification
+    # (default: "1.0.0")
+    serviceVersion: ""
+    # protocol specifies the OTLP protocol: "grpc" or "http"
+    # (default: "grpc")
+    protocol: "grpc"
+    # endpoint is the OTLP collector endpoint
+    # For gRPC: typically "host:4317", for HTTP: typically "host:4318"
+    endpoint: ""
+    # insecure disables TLS for the OTLP connection
+    # Set to "true" for in-cluster communication without TLS
+    insecure: "false"
+    # tracesExporter specifies the traces exporter: "otlp" or "none"
+    # (default: "none")
+    tracesExporter: "none"
+    # tracesSampler specifies the OTEL_TRACES_SAMPLER type. Supported values:
+    # "always_on", "always_off", "traceidratio", "parentbased_always_on",
+    # "parentbased_always_off", "parentbased_traceidratio".
+    # When empty, the application defaults to parentbased_traceidratio.
+    tracesSampler: ""
+    # tracesSamplerArg specifies the OTEL_TRACES_SAMPLER_ARG (sampler ratio or parent_sampler_arg).
+    # Used by "traceidratio" and "parentbased_traceidratio" samplers (defaults to 1.0 if empty).
+    # (default: "")
+    tracesSamplerArg: ""
+    # metricsExporter specifies the metrics exporter: "otlp" or "none"
+    # (default: "none")
+    metricsExporter: "none"
+    # logsExporter specifies the logs exporter: "otlp" or "none"
+    # (default: "none")
+    logsExporter: "none"
+    # propagators specifies the context propagators to use
+    # Comma-separated list: "tracecontext", "baggage", "jaeger"
+    # (default: "tracecontext,baggage")
+    propagators: "tracecontext,baggage,jaeger"
+
+# HTTP routing configuration
+traefik:
+  enabled: true
+  gateway:
+    name: lfx-platform-gateway
+    namespace: lfx
+
+# nats is the configuration for the NATS server
+nats:
+  # url is the URL of the NATS server
+  url: nats://lfx-platform-nats.lfx.svc.cluster.local:4222
+
+# heimdall is the configuration for the heimdall middleware
+heimdall:
+  enabled: true
+  url: http://lfx-platform-heimdall.lfx.svc.cluster.local:4456
+  jwks_url: http://lfx-platform-heimdall.lfx.svc.cluster.local:4457/.well-known/jwks

@@ -1,0 +1,79 @@
+# Revive configuration for Go linting
+# Copyright The Linux Foundation and each contributor to LFX.
+# SPDX-License-Identifier: MIT
+
+# Global settings
+ignoreGeneratedHeader = false
+severity = "warning"
+confidence = 0.8
+errorCode = 1
+warningCode = 1
+
+# Rules configuration
+[rule.blank-imports]
+
+[rule.context-as-argument]
+
+[rule.context-keys-type]
+
+[rule.dot-imports]
+  # Allow dot imports in goa design files as they use DSL
+  [[rule.dot-imports.arguments]]
+    "design/*.go" = false
+
+[rule.error-return]
+
+[rule.error-strings]
+
+[rule.error-naming]
+
+[rule.exported]
+  arguments = ["checkPrivateReceivers", "sayRepetitiveInsteadOfStutters"]
+
+[rule.if-return]
+
+[rule.increment-decrement]
+
+[rule.var-naming]
+
+[rule.var-declaration]
+
+[rule.package-comments]
+
+[rule.range]
+
+[rule.receiver-naming]
+
+[rule.time-naming]
+
+[rule.unexported-return]
+
+[rule.indent-error-flow]
+
+[rule.errorf]
+
+[rule.empty-block]
+
+[rule.superfluous-else]
+
+[rule.unused-parameter]
+
+[rule.unreachable-code]
+
+[rule.redefines-builtin-id]
+
+# Custom rules for this project
+[rule.function-result-limit]
+  arguments = [3]
+
+[rule.argument-limit]
+  arguments = [8]
+
+[rule.cyclomatic]
+  arguments = [15]
+
+[rule.max-public-structs]
+  arguments = [10]
+
+[rule.file-header]
+  arguments = ["Copyright The Linux Foundation and each contributor to LFX."]
