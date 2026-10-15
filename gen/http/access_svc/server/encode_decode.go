@@ -188,7 +188,7 @@ func DecodeMyGrantsRequest(mux goahttp.Muxer, decoder func(*http.Request) goahtt
 		if objectType == "" {
 			err = goa.MergeErrors(err, goa.MissingFieldError("object_type", "query string"))
 		}
-		err = goa.MergeErrors(err, goa.ValidatePattern("object_type", objectType, "^[a-z]+(_[a-z]+)*$"))
+		err = goa.MergeErrors(err, goa.ValidatePattern("object_type", objectType, "^[a-z][a-z0-9]*(_[a-z][a-z0-9]*)*$"))
 		bearerToken = r.Header.Get("Authorization")
 		if bearerToken == "" {
 			err = goa.MergeErrors(err, goa.MissingFieldError("bearer_token", "header"))

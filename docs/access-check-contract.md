@@ -60,7 +60,10 @@ Authorization: Bearer <JWT_TOKEN>
 
 Returns direct OpenFGA tuples for the authenticated caller and requested object
 type. This is backed by `lfx.access_check.read_tuples`; inherited access through
-parent resources is not expanded.
+parent resources is not expanded. `object_type` must match
+`^[a-z][a-z0-9]*(_[a-z][a-z0-9]*)*$`: lower-case segments separated by single
+underscores, each starting with a letter and optionally continuing with letters
+or digits (for example `project`, `b2b_org`, `v1_meeting`).
 
 ```json
 {
