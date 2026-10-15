@@ -103,7 +103,7 @@ paths:
                     type: string
                     description: Object type to query grants for
                     example: project
-                    pattern: ^[a-z]+(_[a-z]+)*$
+                    pattern: ^[a-z][a-z0-9]*(_[a-z][a-z0-9]*)*$
                   example: project
             responses:
                 "200":

@@ -81,7 +81,7 @@ func BuildMyGrantsPayload(accessSvcMyGrantsVersion string, accessSvcMyGrantsObje
 	var objectType string
 	{
 		objectType = accessSvcMyGrantsObjectType
-		err = goa.MergeErrors(err, goa.ValidatePattern("object_type", objectType, "^[a-z]+(_[a-z]+)*$"))
+		err = goa.MergeErrors(err, goa.ValidatePattern("object_type", objectType, "^[a-z][a-z0-9]*(_[a-z][a-z0-9]*)*$"))
 		if err != nil {
 			return nil, err
 		}
