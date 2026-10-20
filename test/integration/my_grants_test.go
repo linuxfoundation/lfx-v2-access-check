@@ -162,6 +162,49 @@ func TestMyGrantsEndpoint(t *testing.T) {
 			natsResponse:   []byte(`{"results":[]}`),
 			expectedStatus: http.StatusOK,
 		},
+		{
+			name:           "Valid object_type with digit inside a segment",
+			url:            "/my-grants?v=1&object_type=b2b_org",
+			authHeader:     "Bearer valid-token",
+			natsResponse:   []byte(`{"results":["b2b_org:c4d83f29-5e6a-4b7c-9d0e-23456789abcd#writer@user:auth0|alice"]}`),
+			expectedStatus: http.StatusOK,
+			validateBody: func(t *testing.T, body []byte) {
+				var resp struct {
+					Grants []string `json:"grants"`
+				}
+				if err := json.Unmarshal(body, &resp); err != nil {
+					t.Fatalf("failed to decode response: %v", err)
+				}
+				if len(resp.Grants) != 1 {
+					t.Fatalf("expected 1 grant, got %d", len(resp.Grants))
+				}
+				want := "b2b_org:c4d83f29-5e6a-4b7c-9d0e-23456789abcd#writer@user:auth0|alice"
+				if resp.Grants[0] != want {
+					t.Errorf("expected grant %q, got %q", want, resp.Grants[0])
+				}
+			},
+		},
+		{
+			name:           "Valid object_type with digit in a leading segment",
+			url:            "/my-grants?v=1&object_type=v1_past_meeting",
+			authHeader:     "Bearer valid-token",
+			natsResponse:   []byte(`{"results":[]}`),
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "Invalid object_type — leading digit",
+			url:            "/my-grants?v=1&object_type=2fa",
+			authHeader:     "Bearer valid-token",
+			natsResponse:   nil,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "Invalid object_type — segment starting with a digit",
+			url:            "/my-grants?v=1&object_type=org_2",
+			authHeader:     "Bearer valid-token",
+			natsResponse:   nil,
+			expectedStatus: http.StatusBadRequest,
+		},
 	}
 
 	for _, tt := range tests {

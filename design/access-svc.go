@@ -81,7 +81,10 @@ var _ = Service("access-svc", func() {
 				Example("1")
 			})
 			Attribute("object_type", String, "Object type to query grants for", func() {
-				Pattern(`^[a-z]+(_[a-z]+)*$`)
+				// Each underscore-separated segment starts with a letter and may
+				// continue with letters or digits, so OpenFGA types such as
+				// b2b_org or v1_meeting are accepted; ':' is still rejected.
+				Pattern(`^[a-z][a-z0-9]*(_[a-z][a-z0-9]*)*$`)
 				Example("project")
 			})
 			Required("bearer_token", "version", "object_type")

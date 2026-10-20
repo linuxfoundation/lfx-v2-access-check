@@ -87,7 +87,7 @@ paths:
                   description: Object type to query grants for
                   required: true
                   type: string
-                  pattern: ^[a-z]+(_[a-z]+)*$
+                  pattern: ^[a-z][a-z0-9]*(_[a-z][a-z0-9]*)*$
                 - name: Authorization
                   in: header
                   description: JWT token from Heimdall
