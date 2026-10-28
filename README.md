@@ -79,7 +79,7 @@ sequenceDiagram
 
 ### Prerequisites
 
-- **Go**: 1.25.14+
+- **Go**: 1.27.3+
 - **Docker**: For containerized deployment
 - **NATS**: Request/reply transport for access-check calls
 - **fga-sync**: Permission evaluator with responders for `lfx.access_check.request` and `lfx.access_check.read_tuples`
