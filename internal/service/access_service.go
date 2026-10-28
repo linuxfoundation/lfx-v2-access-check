@@ -37,7 +37,7 @@ func NewAccessService(authRepo contracts.AuthRepository, client contracts.Access
 	if client != nil {
 		rv := reflect.ValueOf(client)
 		switch rv.Kind() {
-		case reflect.Ptr, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Slice:
+		case reflect.Pointer, reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Slice:
 			if rv.IsNil() {
 				client = nil
 			}

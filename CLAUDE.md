@@ -71,7 +71,7 @@ lfx-v2-access-check/
 ## Development Setup
 
 ### Prerequisites
-- Go 1.25.14+
+- Go 1.27.3+
 - Docker
 - NATS server
 - fga-sync (evaluates permissions from NATS messages)
