@@ -28,6 +28,8 @@ RUN go build -o /go/bin/lfx-access-check -trimpath -ldflags="-w -s" ./cmd/lfx-ac
 FROM cgr.dev/chainguard/static:latest
 
 # Implicit with base image; setting explicitly for linters.
+# Chainguard's static image defines nonroot; keep the named user for clarity.
+# hadolint ignore=DL3066
 USER nonroot
 
 COPY --from=builder /go/bin/lfx-access-check /lfx-access-check
