@@ -2,7 +2,7 @@
 
 ![Build Status](https://github.com/linuxfoundation/lfx-v2-access-check/workflows/Access%20Check%20Service%20Build/badge.svg)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
-![Go Version](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go)
+![Go Version](https://img.shields.io/badge/Go-1.27.4+-00ADD8?logo=go)
 
 An HTTP access-check wrapper for the LFX Self-Service platform. It validates Heimdall-issued JWTs, forwards access-check requests to `lfx-v2-fga-sync` over NATS request/reply, and returns the resulting permission decisions.
 
