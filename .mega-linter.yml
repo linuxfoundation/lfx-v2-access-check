@@ -39,10 +39,10 @@ DISABLE_ERRORS_LINTERS:
   - MARKDOWN_MARKDOWNLINT
   - MARKDOWN_MARKDOWN_TABLE_FORMATTER
 YAML_YAMLLINT_CONFIG_FILE: .yamllint
-REPOSITORY_KICS_ARGUMENTS: >-
-  scan --no-progress
-  --exclude-severities="medium,low,info,trace"
-  --exclude-paths="gen/"
+# zizmor's "artipacked" audit needs the GitHub API (to verify
+# SHA-pinned action tags), which requires GITHUB_TOKEN.
+ACTION_ZIZMOR_UNSECURED_ENV_VARIABLES:
+  - GITHUB_TOKEN
 SPELL_CSPELL_ANALYZE_FILE_NAMES: false
 SPELL_CSPELL_PRE_COMMANDS:
   - command: >-
@@ -71,5 +71,5 @@ KUBERNETES_HELM_ARGUMENTS: charts/lfx-v2-access-check
 # Go linter configuration
 GO_REVIVE_FILTER_REGEX_EXCLUDE: "(that stutters; consider calling this|should not use dot imports)"
 
-# Gitleaks configuration to use our TOML config file
-REPOSITORY_GITLEAKS_CONFIG_FILE: ".gitleaks.toml"
+# betterleaks configuration to use our TOML config file
+REPOSITORY_BETTERLEAKS_CONFIG_FILE: ".betterleaks.toml"
