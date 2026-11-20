@@ -196,7 +196,7 @@ func BenchmarkValidateToken(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		repo.ValidateToken(ctx, token)
+		_, _ = repo.ValidateToken(ctx, token)
 	}
 }
 

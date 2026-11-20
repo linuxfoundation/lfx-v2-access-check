@@ -161,7 +161,11 @@ func TestAccessCheckEndpoint(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed to make request: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() {
+				if err := resp.Body.Close(); err != nil {
+					t.Errorf("failed to close response body: %v", err)
+				}
+			}()
 
 			// Check status code
 			if resp.StatusCode != tt.expectedStatus {
