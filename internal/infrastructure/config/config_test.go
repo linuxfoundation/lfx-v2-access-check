@@ -4,7 +4,6 @@ package config
 
 import (
 	"flag"
-	"os"
 	"testing"
 )
 
@@ -43,8 +42,7 @@ func TestLoadConfig_Defaults(t *testing.T) {
 	defer restoreFlags(originalFlags)
 
 	// Clear environment variables
-	clearEnvVars()
-	defer clearEnvVars()
+	clearEnvVars(t)
 
 	// Create new flag set to avoid conflicts
 	flag.CommandLine = flag.NewFlagSet("test", flag.ContinueOnError)
@@ -81,20 +79,19 @@ func TestLoadConfig_EnvironmentVariables(t *testing.T) {
 	defer restoreFlags(originalFlags)
 
 	// Clear environment variables first
-	clearEnvVars()
-	defer clearEnvVars()
+	clearEnvVars(t)
 
 	// Create new flag set to avoid conflicts
 	flag.CommandLine = flag.NewFlagSet("test", flag.ContinueOnError)
 
 	// Set environment variables
-	os.Setenv("HOST", "test-host")
-	os.Setenv("PORT", "9090")
-	os.Setenv("DEBUG", "true")
-	os.Setenv("JWKS_URL", "http://test-jwks:8000/.well-known/jwks")
-	os.Setenv("AUDIENCE", "test-audience")
-	os.Setenv("ISSUER", "test-issuer")
-	os.Setenv("NATS_URL", "nats://test-nats:4222")
+	t.Setenv("HOST", "test-host")
+	t.Setenv("PORT", "9090")
+	t.Setenv("DEBUG", "true")
+	t.Setenv("JWKS_URL", "http://test-jwks:8000/.well-known/jwks")
+	t.Setenv("AUDIENCE", "test-audience")
+	t.Setenv("ISSUER", "test-issuer")
+	t.Setenv("NATS_URL", "nats://test-nats:4222")
 
 	config := LoadConfig()
 
@@ -128,16 +125,15 @@ func TestLoadConfig_PartialEnvironmentVariables(t *testing.T) {
 	defer restoreFlags(originalFlags)
 
 	// Clear environment variables first
-	clearEnvVars()
-	defer clearEnvVars()
+	clearEnvVars(t)
 
 	// Create new flag set to avoid conflicts
 	flag.CommandLine = flag.NewFlagSet("test", flag.ContinueOnError)
 
 	// Set only some environment variables
-	os.Setenv("HOST", "partial-host")
-	os.Setenv("DEBUG", "1")
-	os.Setenv("AUDIENCE", "partial-audience")
+	t.Setenv("HOST", "partial-host")
+	t.Setenv("DEBUG", "1")
+	t.Setenv("AUDIENCE", "partial-audience")
 
 	config := LoadConfig()
 
@@ -165,17 +161,16 @@ func TestLoadConfig_EmptyEnvironmentVariables(t *testing.T) {
 	defer restoreFlags(originalFlags)
 
 	// Clear environment variables first
-	clearEnvVars()
-	defer clearEnvVars()
+	clearEnvVars(t)
 
 	// Create new flag set to avoid conflicts
 	flag.CommandLine = flag.NewFlagSet("test", flag.ContinueOnError)
 
 	// Set empty environment variables (should use defaults)
-	os.Setenv("HOST", "")
-	os.Setenv("PORT", "")
-	os.Setenv("DEBUG", "")
-	os.Setenv("JWKS_URL", "")
+	t.Setenv("HOST", "")
+	t.Setenv("PORT", "")
+	t.Setenv("DEBUG", "")
+	t.Setenv("JWKS_URL", "")
 
 	config := LoadConfig()
 
@@ -215,14 +210,13 @@ func TestLoadConfig_DebugEnvironmentVariableBehavior(t *testing.T) {
 			defer restoreFlags(originalFlags)
 
 			// Clear environment variables first
-			clearEnvVars()
-			defer clearEnvVars()
+			clearEnvVars(t)
 
 			// Create new flag set to avoid conflicts
 			flag.CommandLine = flag.NewFlagSet("test", flag.ContinueOnError)
 
 			if tt.value != "" {
-				os.Setenv("DEBUG", tt.value)
+				t.Setenv("DEBUG", tt.value)
 			}
 
 			config := LoadConfig()
@@ -275,14 +269,13 @@ func TestLoadConfig_MultipleCallsConsistency(t *testing.T) {
 	defer restoreFlags(originalFlags)
 
 	// Clear environment variables first
-	clearEnvVars()
-	defer clearEnvVars()
+	clearEnvVars(t)
 
 	// Create new flag set to avoid conflicts
 	flag.CommandLine = flag.NewFlagSet("test", flag.ContinueOnError)
 
-	os.Setenv("HOST", "consistency-test")
-	os.Setenv("PORT", "7777")
+	t.Setenv("HOST", "consistency-test")
+	t.Setenv("PORT", "7777")
 
 	config1 := LoadConfig()
 
@@ -302,15 +295,15 @@ func TestLoadConfig_MultipleCallsConsistency(t *testing.T) {
 	}
 }
 
-// Helper function to clear all environment variables used by config
-func clearEnvVars() {
-	os.Unsetenv("HOST")
-	os.Unsetenv("PORT")
-	os.Unsetenv("DEBUG")
-	os.Unsetenv("JWKS_URL")
-	os.Unsetenv("AUDIENCE")
-	os.Unsetenv("ISSUER")
-	os.Unsetenv("NATS_URL")
+// clearEnvVars blanks every environment variable used by config for the
+// duration of the test. LoadConfig reads them with os.Getenv, so an empty
+// value behaves the same as an unset one. t.Setenv restores the originals
+// when the test ends.
+func clearEnvVars(t *testing.T) {
+	t.Helper()
+	for _, key := range []string{"HOST", "PORT", "DEBUG", "JWKS_URL", "AUDIENCE", "ISSUER", "NATS_URL"} {
+		t.Setenv(key, "")
+	}
 }
 
 func TestParseBool(t *testing.T) {

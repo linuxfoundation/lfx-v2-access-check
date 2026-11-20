@@ -277,7 +277,9 @@ func TestNewContainer_ConfigurationValues(t *testing.T) {
 		}
 
 		// Clean up
-		container.Close()
+		if err := container.Close(); err != nil {
+			t.Errorf("Container.Close() returned error: %v", err)
+		}
 	}
 }
 
@@ -342,7 +344,9 @@ func TestNewContainer_ErrorPropagation(t *testing.T) {
 				if container == nil {
 					t.Error("Expected container, got nil")
 				} else {
-					container.Close()
+					if err := container.Close(); err != nil {
+						t.Errorf("Container.Close() returned error: %v", err)
+					}
 				}
 			}
 		})
@@ -418,6 +422,8 @@ func TestNewContainer_EdgeCases(t *testing.T) {
 		if container.Config.Host != "" {
 			t.Errorf("Expected empty Host, got '%s'", container.Config.Host)
 		}
-		container.Close()
+		if err := container.Close(); err != nil {
+			t.Errorf("Container.Close() returned error: %v", err)
+		}
 	}
 }
