@@ -4,6 +4,7 @@ package config
 
 import (
 	"flag"
+	"os"
 	"testing"
 )
 
@@ -295,14 +296,17 @@ func TestLoadConfig_MultipleCallsConsistency(t *testing.T) {
 	}
 }
 
-// clearEnvVars blanks every environment variable used by config for the
-// duration of the test. LoadConfig reads them with os.Getenv, so an empty
-// value behaves the same as an unset one. t.Setenv restores the originals
-// when the test ends.
+// clearEnvVars unsets every environment variable used by config for the
+// duration of the test. t.Setenv records each original value and restores
+// it when the test ends; os.Unsetenv then removes the variable, so tests
+// see it unset rather than set to an empty string.
 func clearEnvVars(t *testing.T) {
 	t.Helper()
 	for _, key := range []string{"HOST", "PORT", "DEBUG", "JWKS_URL", "AUDIENCE", "ISSUER", "NATS_URL"} {
 		t.Setenv(key, "")
+		if err := os.Unsetenv(key); err != nil {
+			t.Fatalf("unset %s: %v", key, err)
+		}
 	}
 }
 
