@@ -30,6 +30,19 @@ service appends the authenticated `@user:{principal}` suffix from the validated
 Heimdall JWT before forwarding to fga-sync. Relationship-token semantics are
 owned by fga-sync; this service does not define the OpenFGA model.
 
+Each non-empty entry must have the form `<type>:<id>#<relation>`, or the whole
+call fails with 400 before anything is sent to fga-sync:
+
+- `type` matches the `/my-grants` `object_type` pattern below.
+- `id` is non-empty and contains no whitespace or `@`.
+- The object (`<type>:<id>`) is 2-256 characters.
+- `relation` is 1-50 characters and contains no whitespace, `:`, `#`, or `@`.
+
+Lengths count characters, not bytes, and whitespace means space, tab, line
+feed, form feed, or carriage return, matching OpenFGA's own check-request
+limits. The 400 message names the entry's index and the rule it broke, not the
+entry. Empty entries are skipped.
+
 ## Response
 
 ```json
@@ -77,7 +90,7 @@ or digits (for example `project`, `b2b_org`, `v1_meeting`).
 
 | HTTP status | Cause |
 | --- | --- |
-| 400 Bad Request | Goa request validation failure: malformed JSON, missing required `Authorization` header, missing/unsupported `v`, empty `requests`, or invalid/missing `object_type` for `/my-grants` |
+| 400 Bad Request | Goa request validation failure: malformed JSON, missing required `Authorization` header, missing/unsupported `v`, empty `requests`, or invalid/missing `object_type` for `/my-grants`; or a `requests` entry that does not match the `<type>:<id>#<relation>` rules above |
 | 401 Unauthorized | JWT is present but expired, invalid, or fails JWKS validation |
 | 500 Internal Server Error | Unexpected local or upstream response shape: auth claim type mismatch, JSON marshal/unmarshal failure, or malformed access-check reply |
 | 503 Service Unavailable | NATS request/reply failure or timeout, read-tuples backend error, or readiness dependency failure |
