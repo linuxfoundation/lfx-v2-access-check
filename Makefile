@@ -25,7 +25,8 @@ GOARCH := amd64
 # Linting
 GOLANGCI_LINT_VERSION := v2.15.0
 LINT_TIMEOUT := 10m
-LINT_TOOL=$(shell go env GOPATH)/bin/golangci-lint
+# Where go install puts binaries: GOBIN if set, otherwise the first GOPATH entry's bin.
+LINT_TOOL := $(or $(shell go env GOBIN),$(firstword $(subst :, ,$(shell go env GOPATH)))/bin)/golangci-lint
 
 ##@ Development
 
