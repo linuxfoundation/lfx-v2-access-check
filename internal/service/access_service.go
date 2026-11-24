@@ -97,9 +97,7 @@ func validateRequest(ctx context.Context, version string) (*contracts.HeimdallCl
 // that OpenFGA accepts.
 const openfgaWhitespace = "\t\n\f\r "
 
-// objectTypePattern is the object type rule /my-grants already applies in
-// design/access-svc.go; every type in the OpenFGA model matches it.
-var objectTypePattern = regexp.MustCompile(`^[a-z][a-z0-9]*(_[a-z][a-z0-9]*)*$`)
+var objectTypePattern = regexp.MustCompile(constants.ObjectTypePattern)
 
 // validateRequestItems checks every non-empty item against the
 // `<type>:<id>#<relation>` grammar and OpenFGA's object and relation limits
