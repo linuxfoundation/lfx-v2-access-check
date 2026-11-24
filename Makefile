@@ -57,8 +57,8 @@ apigen: deps ## Generate API code using Goa
 .PHONY: lint
 lint: ## Run golangci-lint (local Go linting)
 	@echo "Running golangci-lint..."
-	@$(LINT_TOOL) version 2>/dev/null | grep -q "version $(GOLANGCI_LINT_VERSION:v%=%) " || $(MAKE) setup-dev
-	@$(LINT_TOOL) run --timeout=$(LINT_TIMEOUT) ./... && echo "==> Lint OK"
+	@"$(LINT_TOOL)" version 2>/dev/null | grep -q "version $(GOLANGCI_LINT_VERSION:v%=%) " || $(MAKE) setup-dev
+	@"$(LINT_TOOL)" run --timeout=$(LINT_TIMEOUT) ./... && echo "==> Lint OK"
 
 .PHONY: test
 test: ## Run tests
