@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	accesssvc "github.com/linuxfoundation/lfx-v2-access-check/gen/access_svc"
@@ -103,7 +104,7 @@ func TestCheckAccess_Success(t *testing.T) {
 
 	result, err := svc.CheckAccess(ctx, &accesssvc.CheckAccessPayload{
 		Version:  "1",
-		Requests: []string{"resource1", "resource2"},
+		Requests: []string{constants.ExampleProjectAction, constants.ExampleCommitteeAction},
 	})
 	if err != nil {
 		t.Fatalf("CheckAccess failed: %v", err)
@@ -169,12 +170,113 @@ func TestCheckAccess_NATSFailure(t *testing.T) {
 
 	_, err := svc.CheckAccess(contextWithClaims("test-user"), &accesssvc.CheckAccessPayload{
 		Version:  "1",
-		Requests: []string{"resource1"},
+		Requests: []string{constants.ExampleProjectAction},
 	})
 	if err == nil {
 		t.Fatal("CheckAccess should fail on client error")
 	}
 	t.Logf("Got expected error: %v", err)
+}
+
+func TestCheckAccess_RequestItemValidation(t *testing.T) {
+	const uuid = "a27394a3-7a6c-4d0f-9e0f-692d8753924f"
+	object256 := "project:" + strings.Repeat("a", 248)
+
+	tests := []struct {
+		name    string
+		item    string
+		wantErr bool
+	}{
+		{name: "project item", item: "project:" + uuid + "#auditor"},
+		{name: "underscore type", item: "b2b_org:" + uuid + "#writer"},
+		{name: "type with digit segment", item: "v1_meeting:12345#viewer"},
+		{name: "id with colon, dash, dot and pipe", item: "project:a:b-c.d|e#viewer"},
+		{name: "id with vertical tab, accepted as OpenFGA does", item: "project:a\vb#viewer"},
+		{name: "id with no-break space, accepted as OpenFGA does", item: "project:a\u00a0b#viewer"},
+		{name: "object of exactly 256 characters", item: object256 + "#viewer"},
+		{name: "object of 256 multi-byte characters", item: "project:" + strings.Repeat("é", 248) + "#viewer"},
+		{name: "relation of exactly 50 characters", item: "project:p1#" + strings.Repeat("r", 50)},
+		{name: "object of 257 characters", item: object256 + "a#viewer", wantErr: true},
+		{name: "upper-case type", item: "Project:p1#viewer", wantErr: true},
+		{name: "digit-leading type", item: "1project:p1#viewer", wantErr: true},
+		{name: "no type separator", item: "project-p1#viewer", wantErr: true},
+		{name: "empty id", item: "project:#viewer", wantErr: true},
+		{name: "space in id", item: "project:p 1#viewer", wantErr: true},
+		{name: "tab in id", item: "project:p\t1#viewer", wantErr: true},
+		{name: "form feed in id", item: "project:p\f1#viewer", wantErr: true},
+		{name: "carriage return in id", item: "project:p\r1#viewer", wantErr: true},
+		{name: "at sign in id", item: "project:p@1#viewer", wantErr: true},
+		{name: "no relation separator", item: "project:p1", wantErr: true},
+		{name: "empty relation", item: "project:p1#", wantErr: true},
+		{name: "relation of 51 characters", item: "project:p1#" + strings.Repeat("r", 51), wantErr: true},
+		{name: "colon in relation", item: "project:p1#view:er", wantErr: true},
+		{name: "hash in relation", item: "project:p1#view#er", wantErr: true},
+		{name: "at sign in relation", item: "project:p1#viewer@user:x", wantErr: true},
+		{name: "space in relation", item: "project:p1#view er", wantErr: true},
+		{name: "newline adding a check for another user", item: "project:p1#writer@user:other\nproject:p2#viewer", wantErr: true},
+		{name: "newline in id", item: "project:p1\nproject:p2#viewer", wantErr: true},
+		{name: "multi-kilobyte id", item: "project:" + strings.Repeat("x", 3000) + "#viewer", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			called := false
+			checker := &mocks.MockAccessChecker{
+				CheckAccessFunc: func(_ context.Context, _ string, _ []string) ([]string, error) {
+					called = true
+					return []string{}, nil
+				},
+			}
+			svc := NewAccessService(&mocks.MockAuthRepository{}, checker)
+
+			_, err := svc.CheckAccess(contextWithClaims("test-user"), &accesssvc.CheckAccessPayload{
+				Version:  "1",
+				Requests: []string{constants.ExampleProjectAction, tt.item},
+			})
+
+			if !tt.wantErr {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if !called {
+					t.Fatal("expected the request to reach the access checker")
+				}
+				return
+			}
+			var goaErr *goa.ServiceError
+			if !errors.As(err, &goaErr) || goaErr.Name != "BadRequest" {
+				t.Fatalf("expected BadRequest, got %v", err)
+			}
+			if called {
+				t.Fatal("a rejected request must not reach the access checker")
+			}
+			if strings.Contains(goaErr.Message, tt.item) {
+				t.Fatal("the error must not echo the rejected item")
+			}
+		})
+	}
+}
+
+func TestCheckAccess_EmptyItemIsSkipped(t *testing.T) {
+	var got []string
+	checker := &mocks.MockAccessChecker{
+		CheckAccessFunc: func(_ context.Context, _ string, resources []string) ([]string, error) {
+			got = resources
+			return []string{}, nil
+		},
+	}
+	svc := NewAccessService(&mocks.MockAuthRepository{}, checker)
+
+	_, err := svc.CheckAccess(contextWithClaims("test-user"), &accesssvc.CheckAccessPayload{
+		Version:  "1",
+		Requests: []string{"", constants.ExampleProjectAction},
+	})
+	if err != nil {
+		t.Fatalf("an empty item must stay allowed: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("expected the items to be passed through unchanged, got %d", len(got))
+	}
 }
 
 func TestReadyz_Success(t *testing.T) {

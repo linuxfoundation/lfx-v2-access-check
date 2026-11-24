@@ -9,3 +9,9 @@ const (
 	ExampleProjectAction   = "project:a27394a3-7a6c-4d0f-9e0f-692d8753924f#auditor"
 	ExampleCommitteeAction = "committee:b3c72e18-1a2b-4c3d-8e9f-123456789abc#writer"
 )
+
+// ObjectTypePattern is the object type rule shared by the /my-grants
+// object_type attribute and /access-check request items. Each
+// underscore-separated segment starts with a letter and may continue with
+// letters or digits, so OpenFGA types such as b2b_org or v1_meeting match.
+const ObjectTypePattern = `^[a-z][a-z0-9]*(_[a-z][a-z0-9]*)*$`
