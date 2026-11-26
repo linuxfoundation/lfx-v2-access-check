@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"log/slog"
 	"reflect"
+	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	accesssvc "github.com/linuxfoundation/lfx-v2-access-check/gen/access_svc"
 	"github.com/linuxfoundation/lfx-v2-access-check/internal/domain/contracts"
@@ -90,6 +92,60 @@ func validateRequest(ctx context.Context, version string) (*contracts.HeimdallCl
 	return claims, nil
 }
 
+// openfgaWhitespace is the set OpenFGA's `\s` matches (Go RE2): narrower than
+// unicode.IsSpace, which would also reject vertical tab and Unicode spaces
+// that OpenFGA accepts.
+const openfgaWhitespace = "\t\n\f\r "
+
+var objectTypePattern = regexp.MustCompile(constants.ObjectTypePattern)
+
+// validateRequestItems checks every non-empty item against the
+// `<type>:<id>#<relation>` grammar and OpenFGA's object and relation limits
+// before buildMessage joins the items into newline-separated lines, so an item
+// cannot carry extra lines or a user of its own. The length and character
+// limits must not be stricter than OpenFGA's. The grammar also rejects items
+// whose type or id is malformed, which OpenFGA answers as false. Empty items
+// are skipped, as buildMessage skips them. Errors name the item's index, never
+// its content.
+func validateRequestItems(items []string) error {
+	for i, item := range items {
+		if item == "" {
+			continue
+		}
+		if err := validateRequestItem(item); err != nil {
+			return fmt.Errorf("invalid request item %d: %w", i, err)
+		}
+	}
+	return nil
+}
+
+func validateRequestItem(item string) error {
+	object, relation, found := strings.Cut(item, "#")
+	if !found {
+		return errors.New("missing #")
+	}
+	objectType, id, found := strings.Cut(object, ":")
+	if !found {
+		return errors.New("missing : between type and id")
+	}
+	if !objectTypePattern.MatchString(objectType) {
+		return errors.New("type must be lower-case segments separated by single underscores")
+	}
+	if id == "" || strings.ContainsAny(id, openfgaWhitespace+"@") {
+		return errors.New("id must be non-empty with no whitespace or @")
+	}
+	if n := utf8.RuneCountInString(object); n < 2 || n > 256 {
+		return fmt.Errorf("object is %d characters, allowed 2-256", n)
+	}
+	if n := utf8.RuneCountInString(relation); n < 1 || n > 50 {
+		return fmt.Errorf("relation is %d characters, allowed 1-50", n)
+	}
+	if strings.ContainsAny(relation, openfgaWhitespace+":#@") {
+		return errors.New("relation contains a disallowed character")
+	}
+	return nil
+}
+
 // ===== GOA Authentication Interface =====
 
 // JWTAuth implements the authorization logic for the JWT security scheme.
@@ -124,6 +180,11 @@ func (s *AccessService) CheckAccess(ctx context.Context, p *accesssvc.CheckAcces
 	if len(p.Requests) == 0 {
 		slog.WarnContext(ctx, "Empty requests array")
 		return &accesssvc.CheckAccessResult{Results: []string{}}, nil
+	}
+
+	if err := validateRequestItems(p.Requests); err != nil {
+		slog.WarnContext(ctx, "Invalid access check request", "error", err)
+		return nil, accesssvc.MakeBadRequest(err)
 	}
 
 	results, err := s.client.CheckAccess(ctx, claims.Principal, p.Requests)
