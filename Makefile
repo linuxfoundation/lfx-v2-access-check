@@ -25,8 +25,9 @@ GOARCH := amd64
 # Linting
 GOLANGCI_LINT_VERSION := v2.15.0
 LINT_TIMEOUT := 10m
-# Where go install puts binaries: GOBIN if set, otherwise the first GOPATH entry's bin.
-LINT_TOOL = $(or $(shell go env GOBIN),$(firstword $(subst :, ,$(shell go env GOPATH)))/bin)/golangci-lint
+# Where go install puts binaries. Go 1.27+ reports the default
+# (the first GOPATH entry's bin) when GOBIN is unset.
+LINT_TOOL = $(shell go env GOBIN)/golangci-lint
 
 ##@ Development
 
@@ -34,7 +35,7 @@ LINT_TOOL = $(or $(shell go env GOBIN),$(firstword $(subst :, ,$(shell go env GO
 setup-dev: ## Setup development tools
 	@echo "Installing development tools..."
 	@echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION)..."
-	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	GOOS= GOARCH= go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
 .PHONY: setup
 setup: ## Setup development environment
