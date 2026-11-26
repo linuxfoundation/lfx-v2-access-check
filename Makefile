@@ -25,7 +25,9 @@ GOARCH := amd64
 # Linting
 GOLANGCI_LINT_VERSION := v2.15.0
 LINT_TIMEOUT := 10m
-LINT_TOOL=$(shell go env GOPATH)/bin/golangci-lint
+# Where go install puts binaries. Go 1.27+ reports the default
+# (the first GOPATH entry's bin) when GOBIN is unset.
+LINT_TOOL = $(shell go env GOBIN)/golangci-lint
 
 ##@ Development
 
@@ -33,7 +35,7 @@ LINT_TOOL=$(shell go env GOPATH)/bin/golangci-lint
 setup-dev: ## Setup development tools
 	@echo "Installing development tools..."
 	@echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION)..."
-	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	GOOS= GOARCH= go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
 
 .PHONY: setup
 setup: ## Setup development environment
@@ -56,8 +58,8 @@ apigen: deps ## Generate API code using Goa
 .PHONY: lint
 lint: ## Run golangci-lint (local Go linting)
 	@echo "Running golangci-lint..."
-	@which golangci-lint >/dev/null 2>&1 || (echo "Installing golangci-lint..." && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
-	@golangci-lint run ./... && echo "==> Lint OK"
+	@"$(LINT_TOOL)" version 2>/dev/null | grep -q "version $(GOLANGCI_LINT_VERSION:v%=%) " || $(MAKE) setup-dev
+	@"$(LINT_TOOL)" run --timeout=$(LINT_TIMEOUT) ./... && echo "==> Lint OK"
 
 .PHONY: test
 test: ## Run tests
